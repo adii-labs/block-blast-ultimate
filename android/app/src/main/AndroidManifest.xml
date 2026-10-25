@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.blockblast.ultimate">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Internet & Network State for optional AdMob Banner & Rewarded Ads (Core gameplay works 100% offline) -->
     <uses-permission android:name="android.permission.INTERNET" />
