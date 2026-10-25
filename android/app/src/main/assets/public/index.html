@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1e1b4b">
+  <title>Block Blast Ultimate</title>
+  <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+  <!-- Embedded 3D Toy-Jewel Vector SVG Defs & Symbols (100% Offline, Zero Emojis) -->
+  <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true">
+    <defs>
+      <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#fde047" />
+        <stop offset="55%" stop-color="#eab308" />
+        <stop offset="100%" stop-color="#ca8a04" />
+      </linearGradient>
+      <linearGradient id="rubyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#fca5a5" />
+        <stop offset="50%" stop-color="#ef4444" />
+        <stop offset="100%" stop-color="#991b1b" />
+      </linearGradient>
+      <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#67e8f9" />
+        <stop offset="50%" stop-color="#06b6d4" />
+        <stop offset="100%" stop-color="#1e40af" />
+      </linearGradient>
+      <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#fdba74" />
+        <stop offset="50%" stop-color="#f97316" />
+        <stop offset="100%" stop-color="#9a3412" />
+      </linearGradient>
+      <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#d8b4fe" />
+        <stop offset="50%" stop-color="#a855f7" />
+        <stop offset="100%" stop-color="#6b21a8" />
+      </linearGradient>
+      <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#86efac" />
+        <stop offset="50%" stop-color="#22c55e" />
+        <stop offset="100%" stop-color="#166534" />
+      </linearGradient>
+
+      <symbol id="icon-crown" viewBox="0 0 32 32">
+        <path d="M3 24L6 10L12 16L16 7L20 16L26 10L29 24H3Z" fill="url(#goldGrad)" stroke="#fef08a" stroke-width="1.6" stroke-linejoin="round"/>
+        <rect x="4" y="25" width="24" height="3.5" rx="1.75" fill="#ca8a04"/>
+        <circle cx="16" cy="6" r="2.2" fill="#fef08a"/>
+      </symbol>
+
+      <symbol id="icon-coin" viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="13" fill="url(#goldGrad)" stroke="#fef08a" stroke-width="2"/>
+        <circle cx="16" cy="16" r="9.5" fill="none" stroke="#92400e" stroke-width="1.4" stroke-dasharray="3 2"/>
+        <path d="M16 9.5L18 13.8L22.5 14.4L19.2 17.6L20 22L16 19.8L12 22L12.8 17.6L9.5 14.4L14 13.8L16 9.5Z" fill="#fef08a"/>
+      </symbol>
+
+      <symbol id="icon-gem" viewBox="0 0 32 32">
+        <polygon points="16,3 28,12 16,29 4,12" fill="url(#cyanGrad)" stroke="#cffafe" stroke-width="1.6"/>
+        <polygon points="16,3 22,12 16,29 10,12" fill="rgba(255,255,255,0.28)"/>
+      </symbol>
+
+      <symbol id="icon-rocket" viewBox="0 0 32 32">
+        <path d="M16 3C21 7 23 13 23 20H9C9 13 11 7 16 3Z" fill="url(#cyanGrad)" stroke="#e0f2fe" stroke-width="1.5"/>
+        <path d="M9 16L4 22H9V16ZM23 16L28 22H23V16Z" fill="url(#rubyGrad)"/>
+        <circle cx="16" cy="13" r="3" fill="#fef08a"/>
+        <path d="M12 21L16 29L20 21H12Z" fill="url(#orangeGrad)"/>
+      </symbol>
+
+      <symbol id="icon-hammer" viewBox="0 0 32 32">
+        <rect x="14" y="13" width="4.5" height="16" rx="2.2" transform="rotate(-30 16 20)" fill="url(#orangeGrad)"/>
+        <rect x="6" y="6" width="18" height="9" rx="3" transform="rotate(-30 15 10)" fill="url(#purpleGrad)" stroke="#f3e8ff" stroke-width="1.5"/>
+      </symbol>
+
+      <symbol id="icon-bomb" viewBox="0 0 32 32">
+        <circle cx="15" cy="18" r="10.5" fill="url(#rubyGrad)" stroke="#fecaca" stroke-width="1.5"/>
+        <circle cx="11.5" cy="14.5" r="2.8" fill="rgba(255,255,255,0.45)"/>
+        <path d="M19 8C21 5 24 5 26 7" fill="none" stroke="#fde047" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="26.5" cy="6.5" r="2.6" fill="#fde047"/>
+      </symbol>
+
+      <symbol id="icon-megabomb" viewBox="0 0 32 32">
+        <circle cx="16" cy="17" r="11" fill="url(#purpleGrad)" stroke="#fde047" stroke-width="2"/>
+        <path d="M16 9L18.2 13.8L23.5 14.5L19.6 18.2L20.6 23.4L16 20.8L11.4 23.4L12.4 18.2L8.5 14.5L13.8 13.8L16 9Z" fill="url(#goldGrad)"/>
+      </symbol>
+
+      <symbol id="icon-undo" viewBox="0 0 32 32">
+        <path d="M12 8L5 14L12 20V15.5C19 15.5 23 18.5 25 24C26 16.5 21 11 12 11V8Z" fill="url(#emeraldGrad)" stroke="#dcfce7" stroke-width="1.5" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="icon-play" viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.2)"/>
+        <polygon points="12,9 24,16 12,23" fill="#ffffff"/>
+      </symbol>
+
+      <symbol id="icon-star" viewBox="0 0 32 32">
+        <path d="M16 3L19.8 11.2L28.8 12.4L22.2 18.7L23.9 27.6L16 23.3L8.1 27.6L9.8 18.7L3.2 12.4L12.2 11.2L16 3Z" fill="url(#goldGrad)" stroke="#fef9c3" stroke-width="1.5" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div id="app-shell">
+    <!-- Top 3D Arcade Bar: Coin Pill + Quick Home, Sound, Settings & Pause Icon Buttons -->
+    <header class="top-bar">
+      <button type="button" class="coin-pill" id="coin-pill-btn" title="Open Shop">
+        <img src="assets/images/coin.png" alt="Coins">
+        <span id="top-coin-count">500</span>
+        <span class="coin-plus-badge">+</span>
+      </button>
+
+      <div class="top-actions">
+        <button type="button" class="icon-btn" id="btn-top-home" title="Home" style="display:none;">
+          <img src="assets/images/home.png" alt="Home">
+        </button>
+        <button type="button" class="icon-btn" id="btn-top-sound" title="Sound On/Off">
+          <img id="top-sound-img" src="assets/images/sound_on.png" alt="Sound">
+        </button>
+        <button type="button" class="icon-btn" id="btn-top-settings" title="Settings">
+          <img src="assets/images/settings.png" alt="Settings">
+        </button>
+        <button type="button" class="icon-btn" id="btn-top-pause" title="Pause" style="display:none;">
+          <img src="assets/images/pause.png" alt="Pause">
+        </button>
+      </div>
+    </header>
+
+    <!-- SIMPLIFIED 3D CHILD-FRIENDLY HOME SCREEN -->
+    <main id="screen-home" class="screen active">
+      <!-- Cheerful 3D Toy Logo & Title -->
+      <div class="brand-hero">
+        <div class="hero-logo-wrap">
+          <img class="hero-logo" src="assets/images/logo.png" alt="Block Blast Ultimate">
+        </div>
+        <h1 class="brand-title">Block Blast Ultimate</h1>
+      </div>
+
+      <!-- Big Touch-Friendly 3D Play Buttons (Classic & Levels with Star Icon Badge) -->
+      <div class="primary-play-stack">
+        <button type="button" class="btn-hero btn-classic" id="btn-play-classic">
+          <div class="btn-left">
+            <img src="assets/images/crown.png" alt="Classic">
+            <div>
+              <div class="hero-btn-title">CLASSIC</div>
+              <span class="sub-label"><img src="assets/images/trophy.png" class="inline-mini-icon" alt="Best"> <span id="home-best-classic">0</span></span>
+            </div>
+          </div>
+          <span class="play-icon-circle"><img src="assets/images/play.png" alt="Play"></span>
+        </button>
+
+        <button type="button" class="btn-hero btn-levels" id="btn-play-levels">
+          <div class="btn-left">
+            <img src="assets/images/levels.png" alt="Levels">
+            <div>
+              <div class="hero-btn-title">LEVELS</div>
+              <span class="sub-label"><img src="assets/images/star_filled.png" class="inline-mini-icon" alt="Stars"> <span id="home-current-level">Stage 1</span></span>
+            </div>
+          </div>
+          <span class="play-icon-circle"><img src="assets/images/play.png" alt="Play"></span>
+        </button>
+      </div>
+
+      <!-- Compact Child-Friendly 3D Bottom Icon Dock: Daily Gift, Shop, Lucky Spin, More Fun -->
+      <div class="home-compact-dock">
+        <button type="button" class="feature-tile" id="tile-daily" title="Daily Gift">
+          <span class="badge-dot" id="badge-daily" style="display:none;"></span>
+          <img src="assets/images/chest.png" alt="Gift">
+          <span>Gift</span>
+        </button>
+
+        <button type="button" class="feature-tile" id="tile-shop" title="Shop">
+          <img src="assets/images/shop.png" alt="Shop">
+          <span>Shop</span>
+        </button>
+
+        <button type="button" class="feature-tile" id="tile-spinner" title="Lucky Spin">
+          <span class="badge-dot" id="badge-spinner" style="display:none;"></span>
+          <img src="assets/images/spinner.png" alt="Spin">
+          <span>Spin</span>
+        </button>
+
+        <button type="button" class="feature-tile" id="btn-play-modes" title="Modes & Prizes">
+          <span class="badge-dot" id="badge-more" style="display:none;"></span>
+          <img src="assets/images/modes.png" alt="Modes">
+          <span>Modes</span>
+        </button>
+      </div>
+
+      <!-- Hidden Direct Triggers Preserved for Submenu & Automated Testing Compatibility -->
+      <div style="display:none;" aria-hidden="true">
+        <button type="button" id="btn-watch-ad-250"></button>
+        <button type="button" id="tile-tasks"><span id="badge-tasks"></span></button>
+        <button type="button" id="tile-achievements"><span id="badge-achievements"></span></button>
+        <button type="button" id="tile-help"></button>
+      </div>
+    </main>
+
+    <!-- GAMEPLAY SCREEN (3D Extruded Board Cabinet + Smooth Dock + 3D Icon Power-Ups) -->
+    <section id="screen-game" class="screen">
+      <div class="game-hud">
+        <div class="hud-stat">
+          <span class="label"><img src="assets/images/star_filled.png" class="hud-mini-icon" alt="Score"> SCORE</span>
+          <span class="value" id="hud-score">0</span>
+        </div>
+        <div class="hud-stat hud-center-pill">
+          <span class="label" id="hud-extra-label">COMBO</span>
+          <span class="value" id="hud-extra-val" style="color:var(--accent);">x1</span>
+        </div>
+        <div class="hud-stat" style="text-align:right;">
+          <span class="label"><img src="assets/images/crown.png" class="hud-mini-icon" alt="Best"> BEST</span>
+          <span class="value" id="hud-best" style="color:var(--gold);">0</span>
+        </div>
+      </div>
+
+      <div id="objectives-strip" class="objectives-strip" style="display:none;"></div>
+
+      <div class="board-stage">
+        <div id="powerup-hint-banner" class="powerup-hint-banner" style="display:none;"></div>
+        <div class="board-3d-cabinet">
+          <canvas id="board-canvas" width="320" height="320"></canvas>
+        </div>
+      </div>
+
+      <!-- 3-Piece 3D Block Dock Tray (0.58x preview scale, dimmed when unplaceable) -->
+      <div id="tray-container" class="tray-container"></div>
+
+      <!-- Compact 3D Toy Power-Ups Bar (Icon-first buttons: Rocket, Hammer, Bomb, Mega Bomb, Undo) -->
+      <div class="powerup-bar">
+        <button type="button" class="powerup-btn" id="pw-btn-rocket" title="Rocket">
+          <span class="powerup-count" id="pw-count-rocket">2</span>
+          <img src="assets/images/rocket.png" alt="Rocket">
+        </button>
+        <button type="button" class="powerup-btn" id="pw-btn-hammer" title="Hammer">
+          <span class="powerup-count" id="pw-count-hammer">3</span>
+          <img src="assets/images/hammer.png" alt="Hammer">
+        </button>
+        <button type="button" class="powerup-btn" id="pw-btn-bomb_basic" title="Bomb">
+          <span class="powerup-count" id="pw-count-bomb_basic">2</span>
+          <img src="assets/images/bomb_basic.png" alt="Bomb">
+        </button>
+        <button type="button" class="powerup-btn" id="pw-btn-bomb_mega" title="Mega Bomb">
+          <span class="powerup-count" id="pw-count-bomb_mega">1</span>
+          <img src="assets/images/bomb_mega.png" alt="Mega">
+        </button>
+        <button type="button" class="powerup-btn" id="pw-btn-undo" title="Undo">
+          <span class="powerup-count" id="pw-count-undo">3</span>
+          <img src="assets/images/undo.png" alt="Undo">
+        </button>
+      </div>
+    </section>
+
+    <!-- Reserved Native Android AdMob Adaptive Banner Slot (Collapsed to 0px unless a real native banner loads) -->
+    <footer id="admob-banner-slot" class="banner-collapsed" aria-hidden="true"></footer>
+  </div>
+
+  <!-- Floating Drag Ghost Canvas (Lifted -1.15 * cellSize above finger) -->
+  <canvas id="drag-ghost-canvas" width="140" height="140"></canvas>
+
+  <!-- Friendly Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Reusable Child-Friendly 3D Modal Dialog with Glossy 3D 'X' Close Icon Image -->
+  <div id="modal-backdrop" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <img id="modal-title-icon" src="assets/images/crown.png" alt="Icon">
+          <span id="modal-title-text">Menu</span>
+        </h2>
+        <button type="button" class="btn-close-x" id="btn-modal-close" title="Close">
+          <img src="assets/images/close.png" alt="X">
+        </button>
+      </div>
+      <div id="modal-body" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
+
+  <!-- Friendly Reward Video Overlay with 3D 'X' Close Icon -->
+  <div id="ad-sim-backdrop" class="modal-backdrop">
+    <div class="modal-card" style="text-align:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.88rem;color:var(--gold);font-weight:900;display:inline-flex;align-items:center;gap:6px;">
+          <img src="assets/images/coin.png" alt="Bonus" style="width:22px;height:22px;"> BONUS VIDEO
+        </span>
+        <button type="button" class="btn-close-x" id="btn-ad-sim-close" title="Close">
+          <img src="assets/images/close.png" alt="X">
+        </button>
+      </div>
+      <img src="assets/images/ad_video.png" alt="Bonus Video" style="width:68px;height:68px;margin:8px auto;">
+      <div id="ad-sim-unit" style="font-size:0.95rem;color:var(--text-main);font-weight:800;">Watch to get your prize!</div>
+      <div id="ad-sim-timer" style="font-size:1.2rem;font-weight:900;color:var(--accent);margin:6px 0;">2s...</div>
+    </div>
+  </div>
+
+  <!-- Modular Script Load Order -->
+  <script src="src/js/config.js"></script>
+  <script src="src/js/storage.js"></script>
+  <script src="src/js/audio.js"></script>
+  <script src="src/js/pieces.js"></script>
+  <script src="src/js/board.js"></script>
+  <script src="src/js/levels.js"></script>
+  <script src="src/js/tasks.js"></script>
+  <script src="src/js/ads.js"></script>
+  <script src="src/js/game.js"></script>
+  <script src="src/js/ui.js"></script>
+  <script src="src/js/main.js"></script>
+</body>
+</html>
