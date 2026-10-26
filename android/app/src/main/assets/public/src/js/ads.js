@@ -42,9 +42,12 @@
 
   const AdManager = {
     initialized: false,
+    initializationPromise: null,
+    networkListenersAttached: false,
     listenersAttached: false,
     bannerVisible: false,
     bannerHeightPx: 0,
+    bannerLoadFailed: false,
     rewardedPreloaded: false,
     rewardedLoading: false,
     retryCount: 0,
@@ -75,7 +78,12 @@
       );
       return useTest ? CFG.ADMOB.GOOGLE_TEST : CFG.ADMOB.PRODUCTION;
     },
-
+    shouldUseTestAds() {
+      return Boolean(
+        (CFG.ADMOB && CFG.ADMOB.USE_GOOGLE_TEST_IDS) ||
+        (STORAGE.state && STORAGE.state.consent && STORAGE.state.consent.useTestIds)
+      );
+    },
     setBannerReservedHeight(heightPx) {
       const px = Math.max(0, Math.round(Number(heightPx) || 0));
       this.bannerHeightPx = px;
@@ -98,6 +106,7 @@
 
       try {
         plugin.addListener(BANNER_EVENTS.Loaded, () => {
+          this.bannerLoadFailed = false;
           if (this.bannerHeightPx <= 0) {
             this.setBannerReservedHeight(56);
           }
@@ -110,6 +119,7 @@
         });
 
         plugin.addListener(BANNER_EVENTS.FailedToLoad, () => {
+          this.bannerLoadFailed = true;
           this.setBannerReservedHeight(0);
         });
 
@@ -173,6 +183,17 @@
 
     async initialize() {
       if (this.initialized) return true;
+      if (this.initializationPromise) return this.initializationPromise;
+      this.initializationPromise = this.initializeOnce();
+      try {
+        return await this.initializationPromise;
+      } finally {
+        this.initializationPromise = null;
+      }
+    },
+
+    async initializeOnce() {
+      if (this.initialized) return true;
       const plugin = this.getNativePlugin();
 
       if (STORAGE.state && Array.isArray(STORAGE.state.grantedAdTransactionIds)) {
@@ -181,7 +202,8 @@
         }
       }
 
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && !this.networkListenersAttached) {
+        this.networkListenersAttached = true;
         window.addEventListener('online', () => {
           this.showBanner();
           this.preloadRewardedAd();
@@ -201,7 +223,7 @@
             }
           }
           await plugin.initialize({
-            initializeForTesting: Boolean(STORAGE.state && STORAGE.state.consent && STORAGE.state.consent.useTestIds)
+            initializeForTesting: this.shouldUseTestAds()
           });
           this.initialized = true;
           this.preloadRewardedAd();
@@ -229,7 +251,7 @@
       try {
         await plugin.prepareRewardVideoAd({
           adId: units.REWARDED_AD_UNIT_ID,
-          isTesting: Boolean(STORAGE.state && STORAGE.state.consent && STORAGE.state.consent.useTestIds)
+          isTesting: this.shouldUseTestAds()
         });
         this.rewardedPreloaded = true;
         this.rewardedLoading = false;
@@ -252,14 +274,22 @@
 
       if (plugin && typeof plugin.showBanner === 'function') {
         try {
-          await this.initialize();
+          if (!(await this.initialize())) {
+            this.setBannerReservedHeight(0);
+            return false;
+          }
+          this.bannerLoadFailed = false;
           await plugin.showBanner({
             adId: units.BANNER_AD_UNIT_ID,
             adSize: 'ADAPTIVE_BANNER',
             position: 'BOTTOM_CENTER',
             margin: 0,
-            isTesting: Boolean(STORAGE.state && STORAGE.state.consent && STORAGE.state.consent.useTestIds)
+            isTesting: this.shouldUseTestAds()
           });
+          if (this.bannerLoadFailed) {
+            this.setBannerReservedHeight(0);
+            return false;
+          }
           this.setBannerReservedHeight(56);
           return true;
         } catch (err) {
@@ -280,7 +310,7 @@
       if (plugin && typeof plugin.hideBanner === 'function') {
         try {
           await plugin.hideBanner();
-        } catch (e) {}
+        } catch (e) { }
       }
     },
 
@@ -288,7 +318,7 @@
      * Shows a user-initiated Rewarded Ad for a specific placement:
      *   - 'coins_250'        -> Grants 250 coins
      *   - 'spinner_extra'    -> Grants 1 extra spin
-     *   - 'refill_rocket' | 'refill_hammer' | 'refill_bomb_basic' | 'refill_bomb_mega' | 'refill_undo'
+    *   - 'refill_rocket' | 'refill_hammer' | 'refill_bomb_basic' | 'refill_bomb_mega'
      *   - 'classic_continue' -> Continues Classic Mode run
      *
      * Enforces single-resolution token locking so duplicate callbacks, retries, early exits,
@@ -361,11 +391,13 @@
       // 1. Native Android Capacitor AdMob path
       if (plugin && typeof plugin.prepareRewardVideoAd === 'function') {
         try {
-          await this.initialize();
+          if (!(await this.initialize())) {
+            return finalizeOnce(false, 'Ads are unavailable right now. You can keep playing.');
+          }
           if (!this.rewardedPreloaded) {
             await plugin.prepareRewardVideoAd({
               adId: units.REWARDED_AD_UNIT_ID,
-              isTesting: Boolean(STORAGE.state && STORAGE.state.consent && STORAGE.state.consent.useTestIds)
+              isTesting: this.shouldUseTestAds()
             });
             this.rewardedPreloaded = true;
           }

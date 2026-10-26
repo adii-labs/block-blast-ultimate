@@ -51,6 +51,9 @@
     floatingTexts: [],
     screenShake: 0,
     rocketAnim: null,
+    rocketLaunch: null,
+    rocketDebris: [],
+    rocketSprite: null,
     animFrameId: null,
     spinnerSpinning: false,
     spinnerAngle: 0,
@@ -60,6 +63,8 @@
       this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
       this.ghostCanvas = document.getElementById('drag-ghost-canvas');
       this.ghostCtx = this.ghostCanvas ? this.ghostCanvas.getContext('2d') : null;
+      this.rocketSprite = new Image();
+      this.rocketSprite.src = 'assets/images/rocket.png';
 
       this.applySettingsAndTheme();
       this.bindEvents();
@@ -69,12 +74,7 @@
       this.updateTopBar();
       this.updateHomeBadges();
       this.startRenderLoop();
-
-      if (!STORAGE.state.consent.decided) {
-        this.showConsentModal();
-      } else {
-        ADS.showBanner();
-      }
+      ADS.showBanner();
     },
 
     applySettingsAndTheme() {
@@ -86,9 +86,20 @@
       root.style.setProperty('--bg-top', themeObj.bgTop || '#1e1b4b');
       root.style.setProperty('--bg-primary', themeObj.bgPrimary);
       root.style.setProperty('--bg-secondary', themeObj.bgSecondary);
+      const themeBackgroundImage = themeObj.backgroundImage
+        ? `url("${new URL(themeObj.backgroundImage, document.baseURI).href}")`
+        : 'none';
+      root.style.setProperty('--theme-bg-image', themeBackgroundImage);
+      root.style.setProperty('--home-classic-gradient', themeObj.homeClassicGradient || 'linear-gradient(180deg, #4ade80 0%, #22c55e 52%, #15803d 100%)');
+      root.style.setProperty('--home-classic-shadow', themeObj.homeClassicShadow || '#14532d');
+      root.style.setProperty('--home-levels-gradient', themeObj.homeLevelsGradient || 'linear-gradient(180deg, #fb923c 0%, #f97316 52%, #c2410c 100%)');
+      root.style.setProperty('--home-levels-shadow', themeObj.homeLevelsShadow || '#7c2d12');
       root.style.setProperty('--board-bg', themeObj.boardBg || '#090d1f');
       root.style.setProperty('--cell-a', themeObj.cellA || '#131c38');
       root.style.setProperty('--cell-b', themeObj.cellB || '#162040');
+      root.style.setProperty('--board-frame-gradient', themeObj.boardFrameGradient || 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 55%, #1e3a8a 100%)');
+      root.style.setProperty('--board-frame-border', themeObj.boardFrameBorder || '#93c5fd');
+      root.style.setProperty('--board-frame-shadow', themeObj.boardFrameShadow || '#090d1f');
       root.style.setProperty('--accent', themeObj.accent);
 
       document.body.classList.toggle('theme-light', Boolean(themeObj.isLight));
@@ -155,7 +166,6 @@
     },
 
     switchScreen(screenId) {
-      AUDIO.play('menu');
       document.querySelectorAll('.screen').forEach(el => {
         el.classList.toggle('active', el.id === screenId);
       });
@@ -225,99 +235,134 @@
         ctx.shadowBlur = 14;
       }
 
+      // 1. 3D Extruded Bottom Shadow Ledge (makes block stand out in 3D!)
+      ctx.fillStyle = skin === 'skin_neon' ? pal.dark : '#050814';
+      roundRect(ctx, bx + 0.5, by + depth * 0.75, bs, faceH, r);
+      ctx.fill();
+
+      ctx.fillStyle = pal.dark;
+      roundRect(ctx, bx, by + depth * 0.55, bs, faceH, r);
+      ctx.fill();
+
+      // 2. Main Elevated 3D Toy Block Face
+      ctx.fillStyle = pal.main || pal.fill;
+      roundRect(ctx, bx, by, bs, faceH, r);
+      ctx.fill();
+
+      const bev = Math.max(3, bs * 0.16);
+
+      // 3a. Top 3D Bevel Highlight
+      ctx.fillStyle = pal.light;
+      ctx.beginPath();
+      ctx.moveTo(bx + r * 0.6, by);
+      ctx.lineTo(bx + bs - r * 0.6, by);
+      ctx.lineTo(bx + bs - bev, by + bev);
+      ctx.lineTo(bx + bev, by + bev);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3b. Left 3D Side Highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(bx, by + r * 0.6);
+      ctx.lineTo(bx + bev, by + bev);
+      ctx.lineTo(bx + bev, by + faceH - bev);
+      ctx.lineTo(bx, by + faceH - r * 0.6);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3c. Right 3D Side Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(bx + bs, by + r * 0.6);
+      ctx.lineTo(bx + bs, by + faceH - r * 0.6);
+      ctx.lineTo(bx + bs - bev, by + faceH - bev);
+      ctx.lineTo(bx + bs - bev, by + bev);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3d. Bottom 3D Bevel Rim
+      ctx.fillStyle = pal.dark;
+      ctx.beginPath();
+      ctx.moveTo(bx + bev, by + faceH - bev);
+      ctx.lineTo(bx + bs - bev, by + faceH - bev);
+      ctx.lineTo(bx + bs - r * 0.6, by + faceH);
+      ctx.lineTo(bx + r * 0.6, by + faceH);
+      ctx.closePath();
+      ctx.fill();
+
+      // 4. Raised Inner Jewel Pillow + Top Specular Shine Dome
+      const inX = bx + bs * 0.14;
+      const inY = by + faceH * 0.14;
+      const inW = bs * 0.72;
+      const inH = faceH * 0.72;
+      const grad = ctx.createLinearGradient(inX, inY, inX, inY + inH);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.42)');
+      grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+      ctx.fillStyle = grad;
+      roundRect(ctx, inX, inY, inW, inH, r * 0.55);
+      ctx.fill();
+
+      // Crisp 3D specular gloss pill on top-left
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
+      roundRect(ctx, inX + inW * 0.1, inY + inH * 0.08, inW * 0.48, Math.max(2, inH * 0.2), 99);
+      ctx.fill();
+
       if (skin === 'skin_neon') {
-        ctx.fillStyle = '#090d1f';
-        roundRect(ctx, bx, by, bs, bs, r);
-        ctx.fill();
-        ctx.strokeStyle = pal.main || pal.fill;
-        ctx.lineWidth = 2.8;
-        roundRect(ctx, bx + 1.5, by + 1.5, bs - 3, bs - 3, r * 0.85);
-        ctx.stroke();
-        ctx.fillStyle = pal.light;
-        ctx.globalAlpha = alpha * 0.42;
-        roundRect(ctx, bx + bs * 0.22, by + bs * 0.22, bs * 0.56, bs * 0.56, r * 0.5);
+        const neonFace = ctx.createLinearGradient(inX, inY, inX + inW, inY + inH);
+        neonFace.addColorStop(0, pal.light);
+        neonFace.addColorStop(0.48, pal.main || pal.fill);
+        neonFace.addColorStop(1, pal.dark);
+        ctx.globalAlpha = alpha * 0.88;
+        ctx.fillStyle = neonFace;
+        roundRect(ctx, inX + 1, inY + 1, inW - 2, inH - 2, r * 0.5);
         ctx.fill();
         ctx.globalAlpha = alpha;
-      } else {
-        // 1. 3D Extruded Bottom Shadow Ledge (makes block stand out in 3D!)
-        ctx.fillStyle = '#050814';
-        roundRect(ctx, bx + 0.5, by + depth * 0.75, bs, faceH, r);
+        ctx.shadowColor = pal.glow;
+        ctx.shadowBlur = Math.min(12, bs * 0.16);
+        ctx.strokeStyle = pal.light;
+        ctx.lineWidth = Math.max(1.5, bs * 0.045);
+        roundRect(ctx, bx + bev * 0.48, by + bev * 0.48, bs - bev * 0.96, faceH - bev * 0.96, r * 0.52);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else if (skin === 'skin_wood') {
+        const cushionGradient = ctx.createLinearGradient(inX, inY, inX, inY + inH);
+        cushionGradient.addColorStop(0, pal.light);
+        cushionGradient.addColorStop(0.5, pal.main || pal.fill);
+        cushionGradient.addColorStop(1, pal.dark);
+        ctx.fillStyle = cushionGradient;
+        roundRect(ctx, inX + 1, inY + 1, inW - 2, inH - 2, r * 0.58);
         ctx.fill();
-
-        ctx.fillStyle = pal.dark;
-        roundRect(ctx, bx, by + depth * 0.55, bs, faceH, r);
-        ctx.fill();
-
-        // 2. Main Elevated 3D Toy Block Face
-        ctx.fillStyle = pal.main || pal.fill;
-        roundRect(ctx, bx, by, bs, faceH, r);
-        ctx.fill();
-
-        const bev = Math.max(3, bs * 0.16);
-
-        // 3a. Top 3D Bevel Highlight
-        ctx.fillStyle = pal.light;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.58)';
+        ctx.lineWidth = Math.max(1.5, bs * 0.035);
+        roundRect(ctx, inX + 2, inY + 2, inW - 4, inH - 4, r * 0.56);
+        ctx.stroke();
+        ctx.setLineDash([Math.max(1, bs * 0.035), Math.max(2, bs * 0.07)]);
+        ctx.strokeStyle = 'rgba(61, 35, 75, 0.62)';
+        ctx.lineWidth = Math.max(1, bs * 0.022);
+        roundRect(ctx, inX + bs * 0.1, inY + bs * 0.1, inW - bs * 0.2, inH - bs * 0.2, r * 0.42);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (skin === 'skin_crystal') {
+        ctx.globalAlpha = alpha * 0.42;
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.moveTo(bx + r * 0.6, by);
-        ctx.lineTo(bx + bs - r * 0.6, by);
-        ctx.lineTo(bx + bs - bev, by + bev);
-        ctx.lineTo(bx + bev, by + bev);
+        ctx.moveTo(inX + inW * 0.5, inY + inH * 0.12);
+        ctx.lineTo(inX + inW * 0.88, inY + inH * 0.46);
+        ctx.lineTo(inX + inW * 0.5, inY + inH * 0.88);
         ctx.closePath();
         ctx.fill();
-
-        // 3b. Left 3D Side Highlight
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
         ctx.beginPath();
-        ctx.moveTo(bx, by + r * 0.6);
-        ctx.lineTo(bx + bev, by + bev);
-        ctx.lineTo(bx + bev, by + faceH - bev);
-        ctx.lineTo(bx, by + faceH - r * 0.6);
+        ctx.moveTo(inX + inW * 0.5, inY + inH * 0.12);
+        ctx.lineTo(inX + inW * 0.12, inY + inH * 0.46);
+        ctx.lineTo(inX + inW * 0.5, inY + inH * 0.88);
         ctx.closePath();
         ctx.fill();
-
-        // 3c. Right 3D Side Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-        ctx.beginPath();
-        ctx.moveTo(bx + bs, by + r * 0.6);
-        ctx.lineTo(bx + bs, by + faceH - r * 0.6);
-        ctx.lineTo(bx + bs - bev, by + faceH - bev);
-        ctx.lineTo(bx + bs - bev, by + bev);
-        ctx.closePath();
-        ctx.fill();
-
-        // 3d. Bottom 3D Bevel Rim
-        ctx.fillStyle = pal.dark;
-        ctx.beginPath();
-        ctx.moveTo(bx + bev, by + faceH - bev);
-        ctx.lineTo(bx + bs - bev, by + faceH - bev);
-        ctx.lineTo(bx + bs - r * 0.6, by + faceH);
-        ctx.lineTo(bx + r * 0.6, by + faceH);
-        ctx.closePath();
-        ctx.fill();
-
-        // 4. Raised Inner Jewel Pillow + Top Specular Shine Dome
-        const inX = bx + bs * 0.14;
-        const inY = by + faceH * 0.14;
-        const inW = bs * 0.72;
-        const inH = faceH * 0.72;
-        const grad = ctx.createLinearGradient(inX, inY, inX, inY + inH);
-        grad.addColorStop(0, 'rgba(255, 255, 255, 0.42)');
-        grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.08)');
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
-        ctx.fillStyle = grad;
-        roundRect(ctx, inX, inY, inW, inH, r * 0.55);
-        ctx.fill();
-
-        // Crisp 3D specular gloss pill on top-left
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
-        roundRect(ctx, inX + inW * 0.1, inY + inH * 0.08, inW * 0.48, Math.max(2, inH * 0.2), 99);
-        ctx.fill();
-
-        if (skin === 'skin_crystal') {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-          ctx.lineWidth = 1.3;
-          ctx.strokeRect(inX + 2, inY + 2, inW - 4, inH - 4);
-        }
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = 1.3;
+        ctx.strokeRect(inX + 2, inY + 2, inW - 4, inH - 4);
       }
 
       if (highlight) {
@@ -485,21 +530,21 @@
         }
       }
 
-      // 3. Draw Power-Up Targeting Preview (Rocket row/col highlight, Hammer single cell, Bomb radius)
+      // 3. Draw Power-Up Targeting Preview.
       if (GAME.activePowerupMode && this.hoverCell) {
         const pm = GAME.activePowerupMode;
         const { r: hr, c: hc } = this.hoverCell;
         ctx.save();
-        if (pm.type === 'rocket') {
-          ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
-          ctx.strokeStyle = '#fde047';
-          ctx.lineWidth = 2.5;
-          if (pm.rocketAxis === 'col') {
-            roundRect(ctx, hc * cell + 2, 2, cell - 4, n * cell - 4, 8);
-            ctx.fill();
-            ctx.stroke();
-          } else {
-            roundRect(ctx, 2, hr * cell + 2, n * cell - 4, cell - 4, 8);
+        if (pm.type === 'rocket' && this.rocketLaunch) {
+          const launch = this.rocketLaunch;
+          const path = BOARD.getRocketPath(n, launch.startRow, launch.startCol, launch.axis, launch.direction);
+          for (const point of path) {
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+            ctx.strokeStyle = point.r === launch.startRow && point.c === launch.startCol
+              ? '#fde047'
+              : 'rgba(191, 234, 255, 0.78)';
+            ctx.lineWidth = point.r === launch.startRow && point.c === launch.startCol ? 3 : 1.5;
+            roundRect(ctx, point.c * cell + 2, point.r * cell + 2, cell - 4, cell - 4, 7);
             ctx.fill();
             ctx.stroke();
           }
@@ -522,33 +567,63 @@
         ctx.restore();
       }
 
-      // 4. Draw Rocket flight animation if active
+      // 4. Draw the rocket flying from its launch point toward the board edge.
       if (this.rocketAnim) {
-        this.rocketAnim.progress += 0.08;
+        const anim = this.rocketAnim;
+        anim.progress = Math.min(1, anim.progress + 0.12);
+        const travel = anim.pathLength * anim.progress;
+        const x = (anim.startCol + 0.5 + (anim.axis === 'row' ? anim.direction * travel : 0)) * cell;
+        const y = (anim.startRow + 0.5 + (anim.axis === 'col' ? anim.direction * travel : 0)) * cell;
+        const angle = anim.axis === 'row'
+          ? (anim.direction > 0 ? Math.PI / 2 : -Math.PI / 2)
+          : (anim.direction > 0 ? Math.PI : 0);
         ctx.save();
-        ctx.fillStyle = '#fde047';
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.strokeStyle = 'rgba(255, 181, 66, 0.95)';
+        ctx.lineWidth = Math.max(3, cell * 0.15);
+        ctx.lineCap = 'round';
         ctx.shadowColor = '#38bdf8';
-        ctx.shadowBlur = 14;
-        if (this.rocketAnim.axis === 'row') {
-          const y = this.rocketAnim.index * cell + cell / 2;
-          const x = this.rocketAnim.progress * (n * cell);
-          ctx.beginPath();
-          ctx.arc(x, y, cell * 0.38, 0, Math.PI * 2);
-          ctx.fill();
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, cell * 0.25);
+        ctx.lineTo(0, cell * 0.95);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        if (this.rocketSprite && this.rocketSprite.complete && this.rocketSprite.naturalWidth > 0) {
+          ctx.drawImage(this.rocketSprite, -cell * 0.42, -cell * 0.42, cell * 0.84, cell * 0.84);
         } else {
-          const x = this.rocketAnim.index * cell + cell / 2;
-          const y = this.rocketAnim.progress * (n * cell);
+          ctx.fillStyle = '#fde047';
           ctx.beginPath();
-          ctx.arc(x, y, cell * 0.38, 0, Math.PI * 2);
+          ctx.arc(0, 0, cell * 0.32, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
-        if (this.rocketAnim.progress >= 1.1) {
-          this.rocketAnim = null;
-        }
+        if (anim.progress >= 1) this.rocketAnim = null;
       }
 
-      // 5. Update & draw expanding golden shockwaves + 12 radial gravity particles per cleared cell
+      // 5. Show cleared blocks flying away as the rocket passes.
+      for (let i = this.rocketDebris.length - 1; i >= 0; i--) {
+        const debris = this.rocketDebris[i];
+        if (this.rocketAnim && debris.triggerProgress > this.rocketAnim.progress) continue;
+        debris.x += debris.vx;
+        debris.y += debris.vy;
+        debris.vy += 0.12;
+        debris.rotation += debris.spin;
+        debris.life -= 0.025;
+        if (debris.life <= 0) {
+          this.rocketDebris.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = debris.life;
+        ctx.translate(debris.x, debris.y);
+        ctx.rotate(debris.rotation);
+        this.drawBeveledBlock(ctx, -debris.size / 2, -debris.size / 2, debris.size, debris.colorIdx, 1, false, debris.extra);
+        ctx.restore();
+      }
+
+      // 6. Update & draw expanding golden shockwaves + 12 radial gravity particles per cleared cell
       if (!STORAGE.state.settings.reducedMotion) {
         for (let i = this.shockwaves.length - 1; i >= 0; i--) {
           const sw = this.shockwaves[i];
@@ -748,6 +823,7 @@
       GAME.selectedTrayIndex = trayIndex;
       AUDIO.play('tap');
       this.renderTray();
+      this.updatePowerupBar();
 
       // Render dragged piece at 0.92x cell size on floating ghost canvas
       if (this.ghostCanvas && this.ghostCtx) {
@@ -805,6 +881,118 @@
       }
     },
 
+    getRocketAim(launch, clientX, clientY) {
+      const deltaX = clientX - launch.startX;
+      const deltaY = clientY - launch.startY;
+      if (Math.hypot(deltaX, deltaY) > 12) {
+        return Math.abs(deltaX) >= Math.abs(deltaY)
+          ? { axis: 'row', direction: deltaX >= 0 ? 1 : -1 }
+          : { axis: 'col', direction: deltaY >= 0 ? 1 : -1 };
+      }
+
+      const candidates = [
+        { axis: 'row', direction: 1 },
+        { axis: 'row', direction: -1 },
+        { axis: 'col', direction: 1 },
+        { axis: 'col', direction: -1 }
+      ];
+      let best = candidates[0];
+      let bestBlocks = -1;
+      for (const candidate of candidates) {
+        const path = BOARD.getRocketPath(
+          GAME.run.boardSize,
+          launch.startRow,
+          launch.startCol,
+          candidate.axis,
+          candidate.direction
+        );
+        const blocks = path.reduce((total, point) => total + (GAME.run.grid[point.r][point.c] ? 1 : 0), 0);
+        if (blocks > bestBlocks) {
+          best = candidate;
+          bestBlocks = blocks;
+        }
+      }
+      return best;
+    },
+
+    updateRocketLaunchAim(clientX, clientY) {
+      if (!this.rocketLaunch || !this.canvas) return;
+      const launch = this.rocketLaunch;
+      const aim = this.getRocketAim(launch, clientX, clientY);
+      launch.axis = aim.axis;
+      launch.direction = aim.direction;
+      const rect = this.canvas.getBoundingClientRect();
+      this.hoverCell = {
+        r: Math.max(0, Math.min(GAME.run.boardSize - 1, Math.floor((clientY - rect.top) / this.cellPx))),
+        c: Math.max(0, Math.min(GAME.run.boardSize - 1, Math.floor((clientX - rect.left) / this.cellPx)))
+      };
+    },
+
+    spawnRocketDebris(clearedCells, axis, direction, startRow, startCol, pathLength) {
+      for (const item of clearedCells) {
+        const along = direction * (2.4 + Math.random() * 2.8);
+        const across = (Math.random() - 0.5) * 5.2;
+        const travelSteps = Math.abs(item.r - startRow) + Math.abs(item.c - startCol);
+        this.rocketDebris.push({
+          x: (item.c + 0.5) * this.cellPx,
+          y: (item.r + 0.5) * this.cellPx,
+          vx: axis === 'row' ? along : across,
+          vy: axis === 'col' ? along : across - 1.5,
+          rotation: Math.random() * Math.PI,
+          spin: (Math.random() - 0.5) * 0.24,
+          triggerProgress: travelSteps / Math.max(1, pathLength),
+          size: this.cellPx * (0.58 + Math.random() * 0.16),
+          life: 1,
+          colorIdx: item.cell.colorIdx,
+          extra: { gem: Boolean(item.cell.gem), bombTimer: item.cell.bombTimer }
+        });
+      }
+    },
+
+    finishRocketLaunch(clientX, clientY) {
+      if (!this.rocketLaunch) return;
+      this.updateRocketLaunchAim(clientX, clientY);
+      const launch = this.rocketLaunch;
+      this.rocketLaunch = null;
+      this.hoverCell = null;
+
+      const result = GAME.executeBoardPowerup(
+        'rocket',
+        launch.startRow,
+        launch.startCol,
+        launch.axis,
+        launch.direction
+      );
+      if (!result.success) {
+        this.showToast(result.reason || 'Choose a launch path with blocks.');
+        this.updatePowerupHint();
+        return;
+      }
+
+      this.rocketAnim = {
+        startRow: launch.startRow,
+        startCol: launch.startCol,
+        axis: launch.axis,
+        direction: launch.direction,
+        pathLength: result.rocketPath.length,
+        progress: 0
+      };
+      this.spawnRocketDebris(
+        result.clearedCells,
+        launch.axis,
+        launch.direction,
+        launch.startRow,
+        launch.startCol,
+        result.rocketPath.length
+      );
+      this.spawnClearEffects(result.clearedCells, 1, 1, 0);
+      this.updatePowerupHint();
+      this.renderTray();
+      this.updateHud();
+      this.updateTopBar();
+      this.updatePowerupBar();
+    },
+
     finishPieceDrag() {
       if (!this.dragState) return;
       const { trayIndex, moved } = this.dragState;
@@ -845,7 +1033,20 @@
       // 1. Power-up execution if a booster is armed
       if (GAME.activePowerupMode) {
         const pm = GAME.activePowerupMode;
-        const out = GAME.executeBoardPowerup(pm.type, r, c, pm.rocketAxis);
+        if (pm.type === 'rocket') {
+          this.rocketLaunch = {
+            startRow: r,
+            startCol: c,
+            startX: ev.clientX,
+            startY: ev.clientY,
+            axis: 'row',
+            direction: 1
+          };
+          this.updateRocketLaunchAim(ev.clientX, ev.clientY);
+          return;
+        }
+
+        const out = GAME.executeBoardPowerup(pm.type, r, c);
         if (!out.success) {
           if (out.noInventory) {
             this.showPowerupRefillModal(pm.type);
@@ -853,9 +1054,6 @@
             this.showToast(out.reason || 'Tap a block on the board!');
           }
           return;
-        }
-        if (pm.type === 'rocket') {
-          this.rocketAnim = { axis: pm.rocketAxis, index: pm.rocketAxis === 'col' ? c : r, progress: 0 };
         }
         this.spawnClearEffects(out.clearedCells, 1, 2, 0);
         this.updatePowerupHint();
@@ -935,7 +1133,7 @@
     },
 
     updatePowerupBar() {
-      const ids = ['rocket', 'hammer', 'bomb_basic', 'bomb_mega', 'undo'];
+      const ids = ['rocket', 'hammer', 'bomb_basic', 'bomb_mega'];
       for (const id of ids) {
         const countEl = document.getElementById(`pw-count-${id}`);
         const btnEl = document.getElementById(`pw-btn-${id}`);
@@ -948,6 +1146,13 @@
           const isActive = Boolean(GAME.activePowerupMode && GAME.activePowerupMode.type === id);
           btnEl.classList.toggle('active', isActive);
         }
+      }
+      const rotateBtn = document.getElementById('pw-btn-rotate');
+      if (rotateBtn) {
+        const piece = GAME.run && GAME.selectedTrayIndex !== null
+          ? GAME.run.tray[GAME.selectedTrayIndex]
+          : null;
+        rotateBtn.classList.toggle('active', Boolean(piece && !piece.placed));
       }
     },
 
@@ -965,18 +1170,9 @@
       if (pm.type === 'rocket') {
         hintEl.innerHTML = `
           <img src="assets/images/rocket.png" style="width:22px;height:22px;" alt="Rocket">
-          <span>${pm.rocketAxis === 'row' ? 'Row ↔' : 'Col ↕'}</span>
-          <button type="button" class="btn btn-primary" id="btn-toggle-rocket-axis" style="padding:4px 10px;font-size:0.74rem;">Flip</button>
+          <span>Tap a launch point, then drag to aim</span>
           <button type="button" class="btn-close-x" id="btn-cancel-pw" style="width:28px;height:28px;"><img src="assets/images/close.png" style="width:26px;height:26px;" alt="X"></button>
         `;
-        const toggleBtn = document.getElementById('btn-toggle-rocket-axis');
-        if (toggleBtn) {
-          toggleBtn.onclick = (e) => {
-            e.stopPropagation();
-            pm.rocketAxis = pm.rocketAxis === 'row' ? 'col' : 'row';
-            this.updatePowerupHint();
-          };
-        }
       } else {
         hintEl.innerHTML = `
           <img src="${cfg.icon}" style="width:22px;height:22px;" alt="${cfg.name}">
@@ -997,24 +1193,22 @@
 
     handlePowerupButtonClick(powerupId) {
       if (!GAME.run || GAME.run.status !== 'playing') return;
-      AUDIO.play('tap');
-
+      if (powerupId === 'rotate') {
+        const piece = GAME.selectedTrayIndex !== null ? GAME.run.tray[GAME.selectedTrayIndex] : null;
+        if (!PIECES.rotatePieceClockwise(piece)) {
+          this.showToast('Tap a block in the tray first.');
+          return;
+        }
+        GAME.activePowerupMode = null;
+        this.updatePowerupHint();
+        this.renderTray();
+        this.updatePowerupBar();
+        this.showToast('Rotated 90° clockwise.');
+        return;
+      }
       const count = STORAGE.state.inventory[powerupId] || 0;
       if (count <= 0) {
         this.showPowerupRefillModal(powerupId);
-        return;
-      }
-
-      if (powerupId === 'undo') {
-        const res = GAME.useUndoPowerup();
-        if (!res.success) {
-          this.showToast(res.reason || 'Place a block first to use Undo!');
-        } else {
-          this.showToast('Move Undone!');
-          this.renderTray();
-          this.updateHud();
-          this.updatePowerupBar();
-        }
         return;
       }
 
@@ -1499,9 +1693,9 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
               <span style="font-size:0.78rem;color:var(--text-muted);">${t.progress} / ${t.target}</span>
               ${t.claimed
-                ? '<img src="assets/images/check.png" style="width:22px;height:22px;" alt="Done">'
-                : `<button type="button" class="btn ${t.completed ? 'btn-gold' : 'btn-secondary'} btn-claim-task" data-uid="${t.uid}" style="padding:5px 12px;font-size:0.78rem;" ${t.completed ? '' : 'disabled'}>Claim</button>`
-              }
+            ? '<img src="assets/images/check.png" style="width:22px;height:22px;" alt="Done">'
+            : `<button type="button" class="btn ${t.completed ? 'btn-gold' : 'btn-secondary'} btn-claim-task" data-uid="${t.uid}" style="padding:5px 12px;font-size:0.78rem;" ${t.completed ? '' : 'disabled'}>Claim</button>`
+          }
             </div>
           </div>
         `;
@@ -1544,9 +1738,9 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
               <span style="font-size:0.78rem;color:var(--text-muted);">${a.progress} / ${a.target}</span>
               ${a.claimed
-                ? '<img src="assets/images/check.png" style="width:22px;height:22px;" alt="Done">'
-                : `<button type="button" class="btn ${a.completed ? 'btn-gold' : 'btn-secondary'} btn-claim-ach" data-id="${a.id}" style="padding:5px 12px;font-size:0.78rem;" ${a.completed ? '' : 'disabled'}>Claim</button>`
-              }
+            ? '<img src="assets/images/check.png" style="width:22px;height:22px;" alt="Done">'
+            : `<button type="button" class="btn ${a.completed ? 'btn-gold' : 'btn-secondary'} btn-claim-ach" data-id="${a.id}" style="padding:5px 12px;font-size:0.78rem;" ${a.completed ? '' : 'disabled'}>Claim</button>`
+          }
             </div>
           </div>
         `;
@@ -1686,7 +1880,6 @@
             return;
           }
 
-          AUDIO.play('tap');
           STORAGE.state.shop[mapKey.eqKey] = id;
           STORAGE.save();
           this.applySettingsAndTheme();
@@ -1773,9 +1966,6 @@
             <button type="button" class="btn btn-secondary" id="tog-theme-quick" style="padding:6px 14px;">Switch</button>
           </div>
 
-          <button type="button" class="btn btn-secondary" id="btn-open-privacy" style="width:100%;">
-            Privacy &amp; Ads
-          </button>
         </div>
       `);
 
@@ -1843,9 +2033,6 @@
         STORAGE.save();
         this.applySettingsAndTheme();
         this.showSettingsModal();
-      };
-      document.getElementById('btn-open-privacy').onclick = () => {
-        this.showConsentModal();
       };
     },
 
@@ -2076,36 +2263,6 @@
       };
     },
 
-    showConsentModal() {
-      this.openModal('Welcome!', 'assets/images/crown.png', `
-        <p style="margin:0;font-size:0.86rem;color:var(--text-muted);line-height:1.4;text-align:center;">
-          <strong>Block Blast Ultimate</strong> works offline anytime and saves your stars &amp; coins on your device.
-        </p>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-          <button type="button" class="btn btn-success" id="btn-consent-accept">
-            <img src="assets/images/play.png" alt="Play"> PLAY NOW
-          </button>
-          <button type="button" class="btn btn-secondary" id="btn-consent-nonpers">Standard Ads Only</button>
-        </div>
-      `);
-
-      document.getElementById('btn-consent-accept').onclick = () => {
-        STORAGE.state.consent.decided = true;
-        STORAGE.state.consent.personalizedAds = true;
-        STORAGE.save();
-        this.closeModal();
-        ADS.showBanner();
-      };
-
-      document.getElementById('btn-consent-nonpers').onclick = () => {
-        STORAGE.state.consent.decided = true;
-        STORAGE.state.consent.personalizedAds = false;
-        STORAGE.save();
-        this.closeModal();
-        ADS.showBanner();
-      };
-    },
-
     presentSimulatedRewardedAdModal({ placement, onComplete, onDismissEarly }) {
       return new Promise((resolve) => {
         const backdrop = document.getElementById('ad-sim-backdrop');
@@ -2125,7 +2282,6 @@
           refill_hammer: '+1 Free Hammer!',
           refill_bomb_basic: '+1 Free Bomb!',
           refill_bomb_mega: '+1 Free Mega Bomb!',
-          refill_undo: '+2 Free Undos!'
         };
 
         if (unitEl) unitEl.textContent = rewardLabels[placement] || 'Bonus Reward!';
@@ -2156,8 +2312,16 @@
     },
 
     bindEvents() {
+      document.addEventListener('click', (ev) => {
+        const target = ev.target instanceof Element ? ev.target : null;
+        if (target && target.closest('button, [role="button"]')) {
+          AUDIO.play('tap');
+        }
+      }, true);
       window.addEventListener('pointermove', (ev) => {
-        if (this.dragState) {
+        if (this.rocketLaunch) {
+          this.updateRocketLaunchAim(ev.clientX, ev.clientY);
+        } else if (this.dragState) {
           const dist = Math.hypot(ev.clientX - this.dragState.startX, ev.clientY - this.dragState.startY);
           if (dist > 5) this.dragState.moved = true;
           this.updateDragGhostPosition(ev.clientX, ev.clientY);
@@ -2169,6 +2333,8 @@
       window.addEventListener('pointerup', (ev) => {
         if (this.dragState) {
           this.finishPieceDrag(ev);
+        } else if (this.rocketLaunch) {
+          this.finishRocketLaunch(ev.clientX, ev.clientY);
         }
       });
 
@@ -2193,7 +2359,6 @@
         STORAGE.state.settings.soundEnabled = !STORAGE.state.settings.soundEnabled;
         STORAGE.save();
         this.applySettingsAndTheme();
-        AUDIO.play('tap');
       });
       bindClick('btn-top-pause', () => this.showPauseModal());
       bindClick('btn-top-settings', () => this.showSettingsModal());
@@ -2218,7 +2383,7 @@
       bindClick('pw-btn-hammer', () => this.handlePowerupButtonClick('hammer'));
       bindClick('pw-btn-bomb_basic', () => this.handlePowerupButtonClick('bomb_basic'));
       bindClick('pw-btn-bomb_mega', () => this.handlePowerupButtonClick('bomb_mega'));
-      bindClick('pw-btn-undo', () => this.handlePowerupButtonClick('undo'));
+      bindClick('pw-btn-rotate', () => this.handlePowerupButtonClick('rotate'));
     }
   };
 

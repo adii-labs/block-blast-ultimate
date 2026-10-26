@@ -231,42 +231,45 @@
     return false;
   }
 
-  /**
-   * Power-up: Rocket clears an entire selected row or column.
-   */
-  function applyRocket(grid, axis, index) {
-    const size = grid.length;
-    if (index < 0 || index >= size) return { valid: false };
+  function getRocketPath(size, startRow, startCol, axis, direction) {
+    if (
+      !Number.isInteger(startRow) || !Number.isInteger(startCol) ||
+      startRow < 0 || startRow >= size || startCol < 0 || startCol >= size ||
+      !['row', 'col'].includes(axis) || ![-1, 1].includes(direction)
+    ) return [];
+
+    const path = [];
+    let row = startRow;
+    let col = startCol;
+    while (row >= 0 && row < size && col >= 0 && col < size) {
+      path.push({ r: row, c: col });
+      if (axis === 'row') col += direction;
+      else row += direction;
+    }
+    return path;
+  }
+
+  function applyRocketPath(grid, startRow, startCol, axis, direction) {
+    const path = getRocketPath(grid.length, startRow, startCol, axis, direction);
+    if (path.length === 0) return { valid: false };
+
     const nextGrid = cloneGrid(grid);
     const clearedCells = [];
     let gemsCollected = 0;
     let bombsDefused = 0;
 
-    if (axis === 'row') {
-      for (let c = 0; c < size; c++) {
-        if (nextGrid[index][c] !== null) {
-          if (nextGrid[index][c].gem) gemsCollected++;
-          if (typeof nextGrid[index][c].bombTimer === 'number') bombsDefused++;
-          clearedCells.push({ r: index, c, cell: Object.assign({}, nextGrid[index][c]) });
-          nextGrid[index][c] = null;
-        }
-      }
-    } else if (axis === 'col') {
-      for (let r = 0; r < size; r++) {
-        if (nextGrid[r][index] !== null) {
-          if (nextGrid[r][index].gem) gemsCollected++;
-          if (typeof nextGrid[r][index].bombTimer === 'number') bombsDefused++;
-          clearedCells.push({ r, c: index, cell: Object.assign({}, nextGrid[r][index]) });
-          nextGrid[r][index] = null;
-        }
-      }
-    } else {
-      return { valid: false };
+    for (const { r, c } of path) {
+      if (nextGrid[r][c] === null) continue;
+      if (nextGrid[r][c].gem) gemsCollected++;
+      if (typeof nextGrid[r][c].bombTimer === 'number') bombsDefused++;
+      clearedCells.push({ r, c, cell: Object.assign({}, nextGrid[r][c]) });
+      nextGrid[r][c] = null;
     }
 
     return {
       valid: true,
       grid: nextGrid,
+      path,
       clearedCells,
       pointsEarned: Math.max(80, clearedCells.length * 20),
       gemsCollected,
@@ -379,7 +382,8 @@
     getPredictiveClears,
     placePieceAndResolve,
     hasAnyValidMove,
-    applyRocket,
+    getRocketPath,
+    applyRocketPath,
     applyHammer,
     getBombAffectedCoords,
     applyBomb

@@ -56,9 +56,20 @@ const EXPECTED_WAVS = [
 ];
 
 let passed = 0;
+const pendingTests = [];
 function test(name, fn) {
   try {
-    fn();
+    const result = fn();
+    if (result && typeof result.then === 'function') {
+      pendingTests.push(Promise.resolve(result).then(() => {
+        console.log(`  [PASS] ${name}`);
+        passed++;
+      }).catch((err) => {
+        console.error(`  [FAIL] ${name}:`, err.message);
+        process.exitCode = 1;
+      }));
+      return;
+    }
     console.log(`  [PASS] ${name}`);
     passed++;
   } catch (err) {
@@ -146,6 +157,25 @@ test('Simultaneous Row + Column clear counts intersection cell once and clears b
   assert.strictEqual(res.grid[7][0], null);
 });
 
+test('Rocket clears only the path from its launch cell to the chosen edge', () => {
+  const grid = BOARD.createEmptyGrid(5);
+  grid[2][0] = { colorIdx: 1 };
+  grid[2][2] = { colorIdx: 2 };
+  grid[2][4] = { colorIdx: 3 };
+  grid[1][2] = { colorIdx: 4 };
+
+  const result = BOARD.applyRocketPath(grid, 2, 2, 'row', 1);
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.path, [
+    { r: 2, c: 2 }, { r: 2, c: 3 }, { r: 2, c: 4 }
+  ]);
+  assert.deepStrictEqual(result.clearedCells.map(cell => [cell.r, cell.c]), [[2, 2], [2, 4]]);
+  assert.strictEqual(result.grid[2][2], null);
+  assert.notStrictEqual(result.grid[2][0], null, 'Blocks behind the launch point must remain');
+  assert.notStrictEqual(result.grid[1][2], null, 'Blocks outside the flight path must remain');
+  assert.strictEqual(grid[2][2].colorIdx, 2, 'Rocket path resolution must not mutate the source grid');
+});
+
 // 5. Power-Up Verification: Hammer, Basic Bomb (3x3), Mega Bomb (5x5 Diamond), Rocket, Undo
 test('Hammer affects strictly 1 occupied cell and rejects empty cells without consuming inventory', () => {
   STORAGE.load();
@@ -171,21 +201,21 @@ test('Basic Bomb clears 3x3 (max 9 cells) and Mega Bomb clears 5x5 diamond+core 
   assert.strictEqual(coordsMega.length, 13, 'Mega bomb 5x5 diamond+3x3 core should cover 13 cells');
 });
 
-test('Rocket clears selected row or column and Undo restores exact previous board state & score', () => {
-  STORAGE.load();
-  GAME.startNewGame('classic');
-  const pieceIdx = 0;
-  const scoreBefore = GAME.run.score;
+test('Rotate turns a selected piece 90 degrees clockwise without changing its cells', () => {
+  const piece = PIECES.clonePiece(PIECES.CATALOG.find(shape => shape.id === 'l_1'));
+  const originalCellCount = piece.cellCount;
+  const originalMatrix = piece.matrix.map(row => row.slice());
 
-  const placeRes = GAME.attemptPlaceTrayPiece(pieceIdx, 2, 2);
-  assert.strictEqual(placeRes.valid, true);
-  assert(GAME.run.score > scoreBefore);
+  assert.strictEqual(PIECES.rotatePieceClockwise(piece), true);
+  assert.strictEqual(piece.rows, 2);
+  assert.strictEqual(piece.cols, 3);
+  assert.deepStrictEqual(piece.matrix, [[1, 1, 1], [1, 0, 0]]);
+  assert.strictEqual(piece.cellCount, originalCellCount);
 
-  const undoRes = GAME.useUndoPowerup();
-  assert.strictEqual(undoRes.success, true);
-  assert.strictEqual(GAME.run.score, scoreBefore, 'Score must revert to pre-placement value');
-  assert.strictEqual(GAME.run.tray[pieceIdx].placed, false, 'Tray piece must be restored');
-  assert.strictEqual(GAME.run.grid[2][2], null, 'Board cell must be empty after Undo');
+  assert.strictEqual(PIECES.rotatePieceClockwise(piece), true);
+  assert.deepStrictEqual(piece.matrix, [[1, 1], [0, 1], [0, 1]]);
+  assert.deepStrictEqual(originalMatrix, [[1, 0], [1, 0], [1, 1]]);
+  assert.strictEqual(PIECES.rotatePieceClockwise({ placed: true, matrix: [[1]] }), false);
 });
 
 // 6. Modes & Level Progression Verification
@@ -245,12 +275,57 @@ test('AdManager grants reward only on completion, blocks duplicate callbacks, an
   assert.strictEqual(noFillRes.granted, false, 'No-fill must NOT grant reward');
   assert.strictEqual(rewardCount, 0);
 
+  const originalGetNativePlugin = ADS.getNativePlugin;
+  const originalInitialize = ADS.initialize;
+  let bannerCalls = 0;
+  let rewardedPrepareCalls = 0;
+  let rewardedShowCalls = 0;
+  const nativeMock = {
+    showBanner: async () => {
+      bannerCalls++;
+      throw new Error('no fill');
+    },
+    hideBanner: async () => { },
+    prepareRewardVideoAd: async () => {
+      rewardedPrepareCalls++;
+      throw new Error('no fill');
+    },
+    showRewardVideoAd: async () => {
+      rewardedShowCalls++;
+      return {};
+    }
+  };
+
+  try {
+    ADS.getNativePlugin = () => nativeMock;
+    ADS.initialize = async () => false;
+    assert.strictEqual(await ADS.showBanner(), false, 'Banner request must stop if SDK initialization fails');
+    const initFailureReward = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
+    assert.strictEqual(initFailureReward.granted, false);
+    assert.strictEqual(bannerCalls, 0, 'Native banner must not be called before successful initialization');
+    assert.strictEqual(rewardedPrepareCalls, 0, 'Rewarded request must not be called before successful initialization');
+
+    ADS.initialize = async () => true;
+    assert.strictEqual(await ADS.showBanner(), false, 'Banner no-fill must be harmless');
+    let failCallbackCount = 0;
+    const nativeNoFillReward = await ADS.showRewardedAd('coins_250', () => { rewardCount++; }, () => { failCallbackCount++; });
+    assert.strictEqual(nativeNoFillReward.granted, false, 'Rewarded no-fill must not grant a reward');
+    assert.strictEqual(failCallbackCount, 1);
+    assert.strictEqual(rewardedShowCalls, 0, 'Rewarded ad must not show after a failed preload');
+    assert.strictEqual(ADS.bannerHeightPx, 0, 'No-fill must collapse the banner slot');
+  } finally {
+    ADS.getNativePlugin = originalGetNativePlugin;
+    ADS.initialize = originalInitialize;
+    if (ADS.retryTimer) clearTimeout(ADS.retryTimer);
+    ADS.retryTimer = null;
+  }
+
   STORAGE.state.consent.devSimulatorMode = 'success';
   const okRes = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
   assert.strictEqual(okRes.granted, true, 'Completed rewarded ad must grant reward once');
   assert.strictEqual(rewardCount, 1);
 });
 
-setTimeout(() => {
+Promise.all(pendingTests).then(() => {
   console.log(`\n=== All ${passed} Automated QA Test Suites Passed! ===`);
-}, 50);
+});

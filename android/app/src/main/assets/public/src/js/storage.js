@@ -48,8 +48,7 @@
         rocket: CFG.POWERUPS.rocket.startingCount,
         hammer: CFG.POWERUPS.hammer.startingCount,
         bomb_basic: CFG.POWERUPS.bomb_basic.startingCount,
-        bomb_mega: CFG.POWERUPS.bomb_mega.startingCount,
-        undo: CFG.POWERUPS.undo.startingCount
+        bomb_mega: CFG.POWERUPS.bomb_mega.startingCount
       },
       levels: {
         unlockedLevel: 1,
@@ -88,9 +87,9 @@
       },
       settings: {
         soundEnabled: true,
-        musicEnabled: false,
-        sfxVolume: 0.85,
-        musicVolume: 0.45,
+        musicEnabled: true,
+        sfxVolume: 1.0,
+        musicVolume: 1.0,
         hapticsEnabled: true,
         hapticsIntensity: 'medium', // 'light' | 'medium' | 'strong'
         textScale: 'normal',        // 'normal' | 'large'

@@ -77,6 +77,21 @@
     };
   }
 
+  function rotatePieceClockwise(piece) {
+    if (!piece || piece.placed || !Array.isArray(piece.matrix) || !piece.matrix.length) return false;
+
+    const rows = piece.matrix.length;
+    const cols = piece.matrix[0].length;
+    const rotated = Array.from({ length: cols }, (_, row) =>
+      Array.from({ length: rows }, (_, col) => piece.matrix[rows - 1 - col][row])
+    );
+
+    piece.matrix = rotated;
+    piece.rows = cols;
+    piece.cols = rows;
+    return true;
+  }
+
   function canPieceFitBoard(grid, piece) {
     if (!grid || !piece || piece.placed) return false;
     const size = grid.length;
@@ -140,6 +155,7 @@
   global.BBU_PIECES = {
     CATALOG: SHAPE_CATALOG,
     clonePiece,
+    rotatePieceClockwise,
     canPieceFitBoard,
     generateTray
   };

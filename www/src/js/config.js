@@ -20,7 +20,7 @@
     },
     // Default to false in release so the supplied Production IDs are active.
     // Note: AdMob IDs and SDK details are kept strictly in configuration/code and NEVER shown in player-facing UI.
-    USE_GOOGLE_TEST_IDS: false,
+    USE_GOOGLE_TEST_IDS: true,
     DEV_SIMULATOR_ENABLED: false,
     // Strictly NO interstitial ads anywhere:
     INTERSTITIAL_ADS_ENABLED: false
@@ -87,17 +87,6 @@
       radius: 2,
       pattern: 'diamond5x5',
       description: 'Super blast! Clears a huge 5x5 star zone on the board!'
-    },
-    undo: {
-      id: 'undo',
-      name: 'Undo',
-      fullName: 'Step Back Undo',
-      icon: 'assets/images/undo.png',
-      svgIcon: 'icon-undo',
-      startingCount: 3,
-      coinCost: 100,
-      adRefillAmount: 2,
-      description: 'Takes back your last move and puts the block back in your tray!'
     }
   };
 
@@ -160,10 +149,10 @@
 
   const SHOP_ITEMS = {
     themes: [
-      { id: 'theme_midnight', name: 'Royal Starry Blue', price: 0, defaultOwned: true, bgPrimary: '#0f172a', bgSecondary: '#172554', bgTop: '#1e1b4b', boardBg: '#090d1f', cellA: '#131c38', cellB: '#162040', accent: '#38bdf8', desc: 'Cheerful starry indigo and royal blue toy theme.' },
-      { id: 'theme_daylight', name: 'Sunny Sky Cloud', price: 0, defaultOwned: true, bgPrimary: '#dbeafe', bgSecondary: '#eff6ff', bgTop: '#bfdbfe', boardBg: '#1e293b', cellA: '#263449', cellB: '#2d3d54', accent: '#2563eb', isLight: true, desc: 'Bright, cheerful sky-blue daylight look.' },
-      { id: 'theme_emerald', name: 'Candy Jungle', price: 450, defaultOwned: false, bgPrimary: '#062c24', bgSecondary: '#0d4438', bgTop: '#064e3b', boardBg: '#041e19', cellA: '#0b2e26', cellB: '#0f382e', accent: '#34d399', desc: 'Playful emerald mint and forest tones.' },
-      { id: 'theme_sunset', name: 'Berry Dream', price: 650, defaultOwned: false, bgPrimary: '#2a122e', bgSecondary: '#421c46', bgTop: '#4a044e', boardBg: '#1b0b1e', cellA: '#2d1433', cellB: '#36183d', accent: '#f472b6', desc: 'Sweet berry purple and pink sunset glow.' }
+      { id: 'theme_midnight', name: 'Royal Starry Blue', price: 0, defaultOwned: true, bgPrimary: '#0f172a', bgSecondary: '#172554', bgTop: '#1e1b4b', boardBg: '#090d1f', cellA: '#131c38', cellB: '#162040', accent: '#38bdf8', backgroundImage: 'assets/images/royal_starry.png', homeClassicGradient: 'linear-gradient(180deg, #4ade80 0%, #22c55e 52%, #15803d 100%)', homeClassicShadow: '#14532d', homeLevelsGradient: 'linear-gradient(180deg, #fb923c 0%, #f97316 52%, #c2410c 100%)', homeLevelsShadow: '#7c2d12', desc: 'Cheerful starry indigo and royal blue toy theme.' },
+      { id: 'theme_daylight', name: 'Sunny Sky Cloud', price: 0, defaultOwned: true, bgPrimary: '#eaf5ff', bgSecondary: '#f8fcff', bgTop: '#c9e8ff', boardBg: '#123b5d', cellA: '#194d73', cellB: '#205b82', accent: '#1478c9', backgroundImage: 'assets/images/sunny_sky.png', boardFrameGradient: 'linear-gradient(145deg, #72c6ff 0%, #318ed0 54%, #1765a4 100%)', boardFrameBorder: '#b9e4ff', boardFrameShadow: '#164c76', homeClassicGradient: 'linear-gradient(180deg, #378de0 0%, #176fbd 55%, #105895 100%)', homeClassicShadow: '#0c4c83', homeLevelsGradient: 'linear-gradient(180deg, #ff9b78 0%, #ed654f 55%, #bd4138 100%)', homeLevelsShadow: '#94332f', isLight: true, desc: 'Bright, cheerful sky-blue daylight look.' },
+      { id: 'theme_emerald', name: 'Candy Jungle', price: 450, defaultOwned: false, bgPrimary: '#062c24', bgSecondary: '#0d4438', bgTop: '#064e3b', boardBg: '#041e19', cellA: '#0b2e26', cellB: '#0f382e', accent: '#34d399', backgroundImage: 'assets/images/candy_jungle.png', homeClassicGradient: 'linear-gradient(180deg, #2dd4bf 0%, #0d9488 52%, #115e59 100%)', homeClassicShadow: '#134e4a', homeLevelsGradient: 'linear-gradient(180deg, #fb923c 0%, #ea580c 52%, #9a3412 100%)', homeLevelsShadow: '#7c2d12', desc: 'Playful emerald mint and forest tones.' },
+      { id: 'theme_sunset', name: 'Berry Dream', price: 650, defaultOwned: false, bgPrimary: '#2a122e', bgSecondary: '#421c46', bgTop: '#4a044e', boardBg: '#1b0b1e', cellA: '#2d1433', cellB: '#36183d', accent: '#f472b6', backgroundImage: 'assets/images/berry_dream.png', homeClassicGradient: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 52%, #1e40af 100%)', homeClassicShadow: '#1e3a8a', homeLevelsGradient: 'linear-gradient(180deg, #fb7185 0%, #e11d48 52%, #9f1239 100%)', homeLevelsShadow: '#881337', desc: 'Sweet berry purple and pink sunset glow.' }
     ],
     skins: [
       { id: 'skin_glossy', name: '3D Toy Bricks', price: 0, defaultOwned: true, style: 'glossy', desc: '3D beveled candy-jewel toy blocks with glossy shine.' },
@@ -222,8 +211,8 @@
   ];
 
   global.BBU_CONFIG = {
-    VERSION: 2,
-    STORAGE_KEY: 'block_blast_ultimate_save_v2',
+    VERSION: 1,
+    STORAGE_KEY: 'block_blast_ultimate_save_v1',
     ADMOB: ADMOB_CONFIG,
     ECONOMY: ECONOMY_CONFIG,
     POWERUPS: POWERUPS_CONFIG,

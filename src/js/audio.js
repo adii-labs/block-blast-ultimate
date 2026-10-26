@@ -66,16 +66,16 @@
         if (this.ctx && this.ctx.state === 'suspended') {
           this.ctx.resume();
         }
-      } catch (e) {}
+      } catch (e) { }
       this.syncMusic();
     },
 
     getSettings() {
       return (global.BBU_STORAGE && global.BBU_STORAGE.state && global.BBU_STORAGE.state.settings) || {
         soundEnabled: true,
-        musicEnabled: false,
-        sfxVolume: 0.85,
-        musicVolume: 0.45,
+        musicEnabled: true,
+        sfxVolume: 1.0,
+        musicVolume: 1.0,
         hapticsEnabled: true,
         hapticsIntensity: 'medium'
       };
@@ -86,12 +86,30 @@
       if (!s.soundEnabled) return;
       this.unlock();
 
-      const vol = Math.max(0, Math.min(1, Number(s.sfxVolume) || 0.8));
+      const sliderVolume = Number.isFinite(Number(s.sfxVolume))
+        ? Math.max(0, Math.min(1, Number(s.sfxVolume)))
+        : 1;
+      const vol = sliderVolume * 1.5;
       const el = this.audioElements[name];
       if (el && typeof el.play === 'function') {
         try {
           const clone = el.cloneNode();
-          clone.volume = vol;
+          let routedThroughGain = false;
+          if (this.ctx && typeof this.ctx.createMediaElementSource === 'function') {
+            try {
+              const source = this.ctx.createMediaElementSource(clone);
+              const gain = this.ctx.createGain();
+              gain.gain.value = vol;
+              source.connect(gain);
+              gain.connect(this.ctx.destination);
+              clone.addEventListener('ended', () => {
+                source.disconnect();
+                gain.disconnect();
+              }, { once: true });
+              routedThroughGain = true;
+            } catch (e) { }
+          }
+          if (!routedThroughGain) clone.volume = Math.min(1, vol);
           const playPromise = clone.play();
           if (playPromise && typeof playPromise.catch === 'function') {
             playPromise.catch(() => this.playSynthFallback(name, vol));
@@ -137,12 +155,15 @@
         gain.gain.exponentialRampToValueAtTime(0.001, now + p.dur);
         osc.start(now);
         osc.stop(now + p.dur);
-      } catch (e) {}
+      } catch (e) { }
     },
 
     syncMusic() {
       const s = this.getSettings();
-      const vol = Math.max(0, Math.min(1, Number(s.musicVolume) || 0.45));
+      const sliderVolume = Number.isFinite(Number(s.musicVolume))
+        ? Math.max(0, Math.min(1, Number(s.musicVolume)))
+        : 1;
+      const vol = sliderVolume * 0.25;
       if (this.bgmElement) {
         this.bgmElement.volume = vol;
         if (s.musicEnabled && this.unlocked) {
@@ -151,7 +172,7 @@
             p.catch(() => this.startSynthBgm(vol));
           }
         } else {
-          try { this.bgmElement.pause(); } catch (e) {}
+          try { this.bgmElement.pause(); } catch (e) { }
           this.stopSynthBgm();
         }
       } else if (s.musicEnabled && this.unlocked) {
@@ -174,14 +195,14 @@
           const gain = this.ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(notes[idx % notes.length], now);
-          gain.gain.setValueAtTime((s.musicVolume || vol) * 0.08, now);
+          gain.gain.setValueAtTime(this.getBgmOutputVolume(s) * 0.08, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
           osc.start(now);
           osc.stop(now + 0.4);
           idx++;
-        } catch (e) {}
+        } catch (e) { }
       }, 420);
     },
 
@@ -190,6 +211,11 @@
         clearInterval(this.bgmSynthTimer);
         this.bgmSynthTimer = null;
       }
+    },
+
+    getBgmOutputVolume(settings = this.getSettings()) {
+      const volume = Number(settings.musicVolume);
+      return (Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1) * 0.25;
     },
 
     haptic(type) {
@@ -209,7 +235,7 @@
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
           navigator.vibrate(pattern);
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   };
 

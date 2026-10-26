@@ -1,7 +1,7 @@
 /**
  * Block Blast Ultimate — Game Controller & Mode Rules Engine
  * Coordinates Classic, Adventure Levels, Timed Blitz, and Bomb Defuse modes,
- * including undo history stack, power-up targeting, combo tracking, and continues.
+ * including power-up targeting, combo tracking, and continues.
  */
 (function (global) {
   'use strict';
@@ -18,7 +18,7 @@
     run: null,
     timerInterval: null,
     selectedTrayIndex: null,
-    activePowerupMode: null, // null | { type: 'rocket'|'hammer'|'bomb_basic'|'bomb_mega', rocketAxis: 'row'|'col' }
+    activePowerupMode: null, // null | { type: 'rocket'|'hammer'|'bomb_basic'|'bomb_mega' }
 
     startNewGame(modeId, options = {}) {
       this.stopTimer();
@@ -75,8 +75,7 @@
         continuesUsed: 0,
         levelConfig,
         status: 'playing', // 'playing' | 'paused' | 'won' | 'gameover'
-        gameOverReason: null,
-        undoStack: []
+        gameOverReason: null
       };
 
       STORAGE.state.stats.gamesPlayed = (STORAGE.state.stats.gamesPlayed || 0) + 1;
@@ -144,26 +143,6 @@
       }
     },
 
-    pushUndoSnapshot() {
-      if (!this.run) return;
-      const snapshot = {
-        grid: BOARD.cloneGrid(this.run.grid),
-        tray: JSON.parse(JSON.stringify(this.run.tray)),
-        score: this.run.score,
-        linesCleared: this.run.linesCleared,
-        combosTriggered: this.run.combosTriggered,
-        comboStreak: this.run.comboStreak,
-        movesMade: this.run.movesMade,
-        movesRemaining: this.run.movesRemaining,
-        gemsCollected: this.run.gemsCollected,
-        bombsDefused: this.run.bombsDefused
-      };
-      this.run.undoStack.push(snapshot);
-      if (this.run.undoStack.length > 5) {
-        this.run.undoStack.shift();
-      }
-    },
-
     attemptPlaceTrayPiece(trayIndex, targetRow, targetCol) {
       if (!this.run || this.run.status !== 'playing') {
         return { valid: false, reason: 'Game is not active' };
@@ -177,9 +156,6 @@
         AUDIO.haptic('error');
         return { valid: false, reason: 'Invalid placement' };
       }
-
-      // Save undo snapshot before mutating state
-      this.pushUndoSnapshot();
 
       const res = BOARD.placePieceAndResolve(
         this.run.grid,
@@ -428,46 +404,10 @@
     },
 
     /**
-     * Executes Undo power-up: restores previous valid board state, tray, and score,
-     * consuming 1 Undo attempt only after successful restoration.
-     */
-    useUndoPowerup() {
-      if (!this.run || this.run.status !== 'playing') {
-        return { success: false, reason: 'Game is not active' };
-      }
-      if (!this.run.undoStack || this.run.undoStack.length === 0) {
-        return { success: false, reason: 'Nothing to undo yet! Place a block first.' };
-      }
-      if ((STORAGE.state.inventory.undo || 0) <= 0) {
-        return { success: false, noInventory: true, powerupId: 'undo' };
-      }
-
-      const prev = this.run.undoStack.pop();
-      this.run.grid = prev.grid;
-      this.run.tray = prev.tray;
-      this.run.score = prev.score;
-      this.run.linesCleared = prev.linesCleared;
-      this.run.combosTriggered = prev.combosTriggered;
-      this.run.comboStreak = prev.comboStreak;
-      this.run.movesMade = prev.movesMade;
-      this.run.movesRemaining = prev.movesRemaining;
-      this.run.gemsCollected = prev.gemsCollected;
-      this.run.bombsDefused = prev.bombsDefused;
-
-      STORAGE.state.inventory.undo -= 1;
-      STORAGE.state.stats.powerupsUsed = (STORAGE.state.stats.powerupsUsed || 0) + 1;
-      TASKS.recordEvent('powerupsUsed', 1);
-      this.persistActiveRun();
-      AUDIO.play('menu');
-      AUDIO.haptic('tap');
-      return { success: true };
-    },
-
-    /**
      * Executes targeted board power-up (Rocket, Hammer, Basic Bomb, Mega Bomb).
      * Consumes inventory ONLY if the action is valid and affects the board.
      */
-    executeBoardPowerup(powerupId, targetRow, targetCol, rocketAxis = 'row') {
+    executeBoardPowerup(powerupId, targetRow, targetCol, rocketAxis = 'row', rocketDirection = 1) {
       if (!this.run || this.run.status !== 'playing') {
         return { success: false, reason: 'Game is not active' };
       }
@@ -478,10 +418,9 @@
 
       let result = null;
       if (powerupId === 'rocket') {
-        const index = rocketAxis === 'col' ? targetCol : targetRow;
-        result = BOARD.applyRocket(this.run.grid, rocketAxis, index);
+        result = BOARD.applyRocketPath(this.run.grid, targetRow, targetCol, rocketAxis, rocketDirection);
         if (result.valid && result.clearedCells.length === 0) {
-          return { success: false, reason: 'Selected line is already empty! Choose a row or column with blocks.' };
+          return { success: false, reason: 'No blocks in that rocket path. Choose another launch point or direction.' };
         }
       } else if (powerupId === 'hammer') {
         result = BOARD.applyHammer(this.run.grid, targetRow, targetCol);
@@ -496,7 +435,6 @@
         return { success: false, reason: (result && result.reason) || 'Invalid target cell' };
       }
 
-      this.pushUndoSnapshot();
       this.run.grid = result.grid;
       this.run.score += result.pointsEarned;
       this.run.gemsCollected += (result.gemsCollected || 0);
@@ -525,6 +463,8 @@
         success: true,
         powerupId,
         rocketAxis,
+        rocketDirection,
+        rocketPath: powerupId === 'rocket' ? result.path : undefined,
         targetRow,
         targetCol,
         clearedCells: result.clearedCells,
