@@ -27,6 +27,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'com.startapp:inapp-sdk:5.4.0'
+        }
+    }
 }
 
 dependencies {
