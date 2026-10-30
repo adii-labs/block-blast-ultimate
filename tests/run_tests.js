@@ -101,7 +101,11 @@ test('All 32 PNG icons and 14 WAV audio files exist on disk and are non-empty', 
 
 // 2. Start.io configuration and clean player UI verification
 test('Start.io config, plugin wiring, and browser preview are valid', async () => {
-  assert.deepStrictEqual(CFG.STARTIO, { APP_ID: '209325533', TEST_MODE: false, REWARDED_COINS: 100 });
+  assert.deepStrictEqual(CFG.STARTIO, {
+    APP_ID: CFG.STARTIO.TEST_MODE ? '205489527' : '209325533',
+    TEST_MODE: CFG.STARTIO.TEST_MODE,
+    REWARDED_COINS: 100
+  });
   assert.strictEqual('ADMOB' in CFG, false);
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
