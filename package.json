@@ -1,9 +1,10 @@
 {
   "name": "block-blast-ultimate",
   "version": "1.0.0",
-  "description": "Block Blast Ultimate — Offline-First HTML5 + Capacitor Android Puzzle Game with Google AdMob Integration",
+  "description": "Block Blast Ultimate — Offline-First HTML5 + Capacitor Android Puzzle Game with Start.io Ads",
   "main": "index.html",
   "scripts": {
+    "build": "node scripts/copy-web.js",
     "sync:web": "node scripts/copy-web.js",
     "cap:add:android": "npx cap add android",
     "cap:sync": "npm run sync:web && npx cap sync android",
@@ -11,15 +12,15 @@
     "test": "node tests/run_tests.js"
   },
   "dependencies": {
-    "@capacitor-community/admob": "^6.0.0",
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/app": "^6.0.1",
-    "@capacitor/core": "^6.1.2",
-    "@capacitor/haptics": "^6.0.1"
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/haptics": "^7.0.5",
+    "@martinezmanoloa/capacitor-startio-ads": "^0.0.4"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.1.2"
+    "@capacitor/cli": "^7.6.10"
   },
-  "author": "Block Blast Ultimate Team",
+  "author": "Aditya",
   "license": "Proprietary"
 }

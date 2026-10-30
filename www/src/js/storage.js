@@ -74,16 +74,14 @@
         dailyProgress: {},
         weeklyProgress: {},
         claimedTaskIds: {},
-        milestoneTierByTemplate: {}
+        milestoneTierByTemplate: {},
+        dailyGeneratedTasks: [],
+        weeklyGeneratedTasks: [],
+        dailyReplacementCount: 0,
+        weeklyReplacementCount: 0
       },
       achievements: {
         claimed: {}
-      },
-      consent: {
-        decided: false,
-        personalizedAds: true,
-        useTestIds: CFG.ADMOB.USE_GOOGLE_TEST_IDS,
-        devSimulatorMode: 'success' // 'success' | 'no_fill' | 'early_close'
       },
       settings: {
         soundEnabled: true,
@@ -96,8 +94,7 @@
         colorblindMode: false,
         reducedMotion: false
       },
-      activeRun: null,
-      grantedAdTransactionIds: []
+      activeRun: null
     };
   }
 
@@ -170,14 +167,14 @@
       out.tasks.weeklyProgress = (raw.tasks.weeklyProgress && typeof raw.tasks.weeklyProgress === 'object') ? Object.assign({}, raw.tasks.weeklyProgress) : {};
       out.tasks.claimedTaskIds = (raw.tasks.claimedTaskIds && typeof raw.tasks.claimedTaskIds === 'object') ? Object.assign({}, raw.tasks.claimedTaskIds) : {};
       out.tasks.milestoneTierByTemplate = (raw.tasks.milestoneTierByTemplate && typeof raw.tasks.milestoneTierByTemplate === 'object') ? Object.assign({}, raw.tasks.milestoneTierByTemplate) : {};
+      out.tasks.dailyGeneratedTasks = Array.isArray(raw.tasks.dailyGeneratedTasks) ? raw.tasks.dailyGeneratedTasks.filter(task => task && typeof task.uid === 'string') : [];
+      out.tasks.weeklyGeneratedTasks = Array.isArray(raw.tasks.weeklyGeneratedTasks) ? raw.tasks.weeklyGeneratedTasks.filter(task => task && typeof task.uid === 'string') : [];
+      out.tasks.dailyReplacementCount = Number.isInteger(raw.tasks.dailyReplacementCount) && raw.tasks.dailyReplacementCount >= 0 ? raw.tasks.dailyReplacementCount : 0;
+      out.tasks.weeklyReplacementCount = Number.isInteger(raw.tasks.weeklyReplacementCount) && raw.tasks.weeklyReplacementCount >= 0 ? raw.tasks.weeklyReplacementCount : 0;
     }
 
     if (raw.achievements && typeof raw.achievements === 'object' && raw.achievements.claimed) {
       out.achievements.claimed = Object.assign({}, raw.achievements.claimed);
-    }
-
-    if (raw.consent && typeof raw.consent === 'object') {
-      out.consent = Object.assign({}, def.consent, raw.consent);
     }
 
     if (raw.settings && typeof raw.settings === 'object') {
@@ -186,10 +183,6 @@
 
     if (raw.activeRun && typeof raw.activeRun === 'object' && Array.isArray(raw.activeRun.grid)) {
       out.activeRun = raw.activeRun;
-    }
-
-    if (Array.isArray(raw.grantedAdTransactionIds)) {
-      out.grantedAdTransactionIds = raw.grantedAdTransactionIds.slice(-100);
     }
 
     return out;

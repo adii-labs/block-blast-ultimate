@@ -1,35 +1,20 @@
 /**
  * Block Blast Ultimate — Central Configuration Module
- * Centralizes AdMob IDs, Economy, Power-ups, Modes, Shop, Spinner, Achievements & 8 Candy-Jewel 3D Palettes.
- */
+ * Centralizes Start.io configuration, Economy, Power-ups, Modes, Shop, Spinner, Achievements & 8 Candy-Jewel 3D Palettes.
+*/
+const TEST_MODE = true; // Set to false for production release
 (function (global) {
   'use strict';
-
-  const ADMOB_CONFIG = {
-    // Production IDs supplied in the Master Prompt:
-    PRODUCTION: {
-      APP_ID: 'ca-app-pub-5668739021259460~4395181121',
-      BANNER_AD_UNIT_ID: 'ca-app-pub-5668739021259460/6342687612',
-      REWARDED_AD_UNIT_ID: 'ca-app-pub-5668739021259460/8777279260'
-    },
-    // Official Google Sample Test IDs for safe development/testing:
-    GOOGLE_TEST: {
-      APP_ID: 'ca-app-pub-3940256099942544~3347511713',
-      BANNER_AD_UNIT_ID: 'ca-app-pub-3940256099942544/6300978111',
-      REWARDED_AD_UNIT_ID: 'ca-app-pub-3940256099942544/5224354917'
-    },
-    // Default to false in release so the supplied Production IDs are active.
-    // Note: AdMob IDs and SDK details are kept strictly in configuration/code and NEVER shown in player-facing UI.
-    USE_GOOGLE_TEST_IDS: true,
-    DEV_SIMULATOR_ENABLED: false,
-    // Strictly NO interstitial ads anywhere:
-    INTERSTITIAL_ADS_ENABLED: false
+  const STARTIO_CONFIG = {
+    APP_ID: TEST_MODE ? '205489527' : '209325533',
+    TEST_MODE,
+    REWARDED_COINS: 100
   };
 
   const ECONOMY_CONFIG = {
     STARTING_COINS: 500,
-    WATCH_AD_COIN_REWARD: 250,
-    DAILY_REWARD_COINS: [100, 150, 200, 250, 300, 400, 600],
+    WATCH_AD_COIN_REWARD: 100,
+    DAILY_REWARD_COINS: [100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000, 1100, 1200, 1350, 1500, 1650, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3500],
     SPINNER_COIN_COST: 150,
     CLASSIC_CONTINUE_MAX: 3,
     CLASSIC_CONTINUE_COINS: [200, 350, 500],
@@ -173,7 +158,13 @@
     { id: 'ach_combo_3', title: 'Combo Star', desc: 'Reach a x3 or higher Combo Streak.', metric: 'maxComboReached', target: 3, rewardCoins: 120 },
     { id: 'ach_score_2000', title: 'Score Hero', desc: 'Score 2,000 points in a Classic game.', metric: 'bestScoreClassic', target: 2000, rewardCoins: 200 },
     { id: 'ach_levels_5', title: 'Adventure Explorer', desc: 'Beat 5 Adventure Levels.', metric: 'levelsCompleted', target: 5, rewardCoins: 180 },
-    { id: 'ach_power_5', title: 'Power Blaster', desc: 'Use any power-up 5 times.', metric: 'powerupsUsed', target: 5, rewardCoins: 125 }
+    { id: 'ach_power_5', title: 'Power Blaster', desc: 'Use any power-up 5 times.', metric: 'powerupsUsed', target: 5, rewardCoins: 125 },
+    { id: 'ach_games_10', title: 'Regular Player', desc: 'Start 10 games in any mode.', metric: 'gamesPlayed', target: 10, rewardCoins: 200 },
+    { id: 'ach_levels_25', title: 'Level Legend', desc: 'Complete 25 Adventure Levels.', metric: 'levelsCompleted', target: 25, rewardCoins: 400 },
+    { id: 'ach_lines_500', title: 'Line Breaker', desc: 'Clear 500 lines across all games.', metric: 'totalLinesCleared', target: 500, rewardCoins: 350 },
+    { id: 'ach_blocks_500', title: 'Block Architect', desc: 'Place 500 block pieces.', metric: 'totalBlocksPlaced', target: 500, rewardCoins: 300 },
+    { id: 'ach_power_25', title: 'Power Collector', desc: 'Use 25 power-ups.', metric: 'powerupsUsed', target: 25, rewardCoins: 300 },
+    { id: 'ach_combo_5', title: 'Combo Master', desc: 'Reach a x5 Combo Streak.', metric: 'maxComboReached', target: 5, rewardCoins: 250 }
   ];
 
   // 8 Candy-Jewel 3D Block Colors (main, light top-left bevel, dark bottom-right bevel, glow)
@@ -213,7 +204,7 @@
   global.BBU_CONFIG = {
     VERSION: 1,
     STORAGE_KEY: 'block_blast_ultimate_save_v1',
-    ADMOB: ADMOB_CONFIG,
+    STARTIO: STARTIO_CONFIG,
     ECONOMY: ECONOMY_CONFIG,
     POWERUPS: POWERUPS_CONFIG,
     MODES: MODES_CONFIG,

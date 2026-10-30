@@ -1,8 +1,8 @@
 /**
  * Block Blast Ultimate — Automated QA & Verification Suite
- * Tests every requirement from the Master Prompt & Child-Friendly 3D UI / AdMob Repair:
+ * Tests game behavior and the Start.io migration:
  *  1. Asset verification (all 32 PNGs including close.png, home.png, star_filled.png, star_empty.png, play.png, restart.png, gem.png and 14 WAVs exist on disk and are non-empty)
- *  2. AdMob ID verification (App ID, Banner ID, Rewarded ID in config & Android files; zero raw IDs in player-facing HTML/UI)
+ *  2. Start.io configuration, Android wiring, and browser-preview behavior
  *  3. 8 Candy-Jewel 3D Block Palette & Predictive Line-Clear Glow (`getPredictiveClears`)
  *  4. Board placement, valid/invalid checks, row/col clears, simultaneous row+col intersection single-count
  *  5. Combos, score calculation, best-score & lifetime score persistence
@@ -10,13 +10,14 @@
  *  7. Modes: Classic (continues allowed), Adventure Levels (retry only, no continue on fail, 1-3 stars, sequential unlock), Timed Blitz, Bomb Defuse
  *  8. Tasks (daily, weekly, unlimited milestones), single-claim enforcement, Daily Reward, Spinner, Shop
  *  9. Save/load persistence, corrupt JSON recovery, v1->v2 migration
- * 10. AdMob reward callback security: duplicate callback prevention, early close = no reward, offline failure handling
+ * 10. Start.io rewards are granted only by the SDK's earned event
  * 11. UI Close ('X') on Game Over / Level Complete returns to Home Screen & zero broken template-interpolated asset paths
  */
 
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -30,6 +31,7 @@ require(path.join(ROOT, 'src/js/levels.js'));
 require(path.join(ROOT, 'src/js/tasks.js'));
 require(path.join(ROOT, 'src/js/ads.js'));
 require(path.join(ROOT, 'src/js/game.js'));
+require(path.join(ROOT, 'src/js/ui.js'));
 
 const CFG = globalThis.BBU_CONFIG;
 const STORAGE = globalThis.BBU_STORAGE;
@@ -39,6 +41,7 @@ const LEVELS = globalThis.BBU_LEVELS;
 const TASKS = globalThis.BBU_TASKS;
 const ADS = globalThis.BBU_ADS;
 const GAME = globalThis.BBU_GAME;
+const UI = globalThis.BBU_UI;
 
 const EXPECTED_PNGS = [
   'ad_video.png', 'bomb_basic.png', 'bomb_mega.png', 'check.png', 'chest.png',
@@ -96,31 +99,31 @@ test('All 32 PNG icons and 14 WAV audio files exist on disk and are non-empty', 
   }
 });
 
-// 2. Supplied Google AdMob IDs & Clean Player UI Verification
-test('Supplied Production AdMob IDs match specification in config/Android & are hidden from player UI', () => {
-  assert.strictEqual(CFG.ADMOB.PRODUCTION.APP_ID, 'ca-app-pub-5668739021259460~4395181121');
-  assert.strictEqual(CFG.ADMOB.PRODUCTION.BANNER_AD_UNIT_ID, 'ca-app-pub-5668739021259460/6342687612');
-  assert.strictEqual(CFG.ADMOB.PRODUCTION.REWARDED_AD_UNIT_ID, 'ca-app-pub-5668739021259460/8777279260');
-  assert.strictEqual(CFG.ADMOB.INTERSTITIAL_ADS_ENABLED, false);
+// 2. Start.io configuration and clean player UI verification
+test('Start.io config, plugin wiring, and browser preview are valid', async () => {
+  assert.deepStrictEqual(CFG.STARTIO, { APP_ID: '209325533', TEST_MODE: false, REWARDED_COINS: 100 });
+  assert.strictEqual('ADMOB' in CFG, false);
 
-  const stringsXml = fs.readFileSync(path.join(ROOT, 'android/app/src/main/res/values/strings.xml'), 'utf8');
-  assert(stringsXml.includes('ca-app-pub-5668739021259460~4395181121'), 'strings.xml missing App ID');
-
+  const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert(packageJson.dependencies['@martinezmanoloa/capacitor-startio-ads']);
+  assert(packageJson.dependencies['@capacitor/core'].startsWith('^7.'));
   const manifestXml = fs.readFileSync(path.join(ROOT, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
-  assert(manifestXml.includes('com.google.android.gms.ads.APPLICATION_ID'), 'AndroidManifest missing APPLICATION_ID meta-data');
+  assert(!manifestXml.includes('com.google.android.gms.ads.APPLICATION_ID'));
+  const nativeActivity = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/com/blockblast/ultimate/MainActivity.java'), 'utf8');
+  assert(!nativeActivity.includes('AdMob'));
 
   const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  assert(!indexHtml.includes('ca-app-pub-'), 'index.html must not expose raw AdMob IDs in player UI');
   assert(indexHtml.includes('assets/images/close.png'), 'index.html must use 3D close.png X icon');
   assert(indexHtml.includes('assets/images/home.png'), 'index.html must use 3D home.png icon');
   assert(indexHtml.includes('assets/images/star_filled.png'), 'index.html must use 3D star_filled.png icon');
 
   const uiJs = fs.readFileSync(path.join(ROOT, 'src/js/ui.js'), 'utf8');
-  assert(!uiJs.includes('ca-app-pub-'), 'ui.js must not expose raw AdMob IDs in player UI');
-  assert(!uiJs.includes('BANNER_AD_UNIT_ID'), 'ui.js must not display Banner Ad Unit ID in Settings');
-  assert(!uiJs.includes('REWARDED_AD_UNIT_ID'), 'ui.js must not display Rewarded Ad Unit ID in Settings');
   assert(!uiJs.includes('assets/images/${'), 'ui.js must not use broken template-interpolated asset paths');
   assert(uiJs.includes('handleModalCloseButton'), 'ui.js must route X close button on gameover/won back to screen-home');
+  assert.strictEqual(await ADS.initialize(), true, 'Browser preview should not require native ads');
+  let failMessage = '';
+  assert.strictEqual(await ADS.showRewarded(() => assert.fail('Browser preview cannot grant ad rewards'), message => { failMessage = message; }), false);
+  assert(failMessage.includes('browser preview'));
 });
 
 // 3. 8 Candy-Jewel 3D Block Palette & Predictive Line-Clear Glow
@@ -244,10 +247,85 @@ test('Tasks and Achievements grant coins only when completed and block duplicate
   const firstClaim = TASKS.claimTask(clearTask.uid);
   assert.strictEqual(firstClaim.success, true);
   assert.strictEqual(STORAGE.state.coins, coinsBefore + clearTask.rewardCoins);
+  assert(!TASKS.getActiveTasks().dailyList.some(task => task.uid === clearTask.uid), 'Claimed daily task should disappear');
+
+  const replacementTask = TASKS.getActiveTasks().dailyList.find(task => task.uid.includes('_bonus_'));
+  assert(replacementTask, 'Claiming a daily task should generate a replacement');
+  assert.strictEqual(replacementTask.progress, 0, 'Generated task should start at zero progress');
+  TASKS.recordEvent(replacementTask.metric, replacementTask.target);
+  const completedReplacement = TASKS.getActiveTasks().dailyList.find(task => task.uid === replacementTask.uid);
+  assert(completedReplacement && completedReplacement.completed, 'Generated task should be completable');
+  assert.strictEqual(TASKS.claimTask(replacementTask.uid).success, true);
+  assert(!TASKS.getActiveTasks().dailyList.some(task => task.uid === replacementTask.uid));
+  assert(TASKS.getActiveTasks().dailyList.some(task => task.uid.includes('_bonus_')));
 
   const duplicateClaim = TASKS.claimTask(clearTask.uid);
   assert.strictEqual(duplicateClaim.success, false, 'Duplicate task claim must be rejected');
-  assert.strictEqual(STORAGE.state.coins, coinsBefore + clearTask.rewardCoins);
+  assert.strictEqual(STORAGE.state.coins, coinsBefore + clearTask.rewardCoins + replacementTask.rewardCoins);
+});
+
+test('Daily Gift can be claimed once and advances to tomorrow reward', () => {
+  const originalDaily = JSON.parse(JSON.stringify(STORAGE.state.daily));
+  const originalCoins = STORAGE.state.coins;
+  STORAGE.state.daily.lastClaimDate = null;
+  STORAGE.state.daily.streakDay = 0;
+
+  try {
+    assert.strictEqual(STORAGE.canClaimDailyReward(), true);
+    const reward = STORAGE.claimDailyReward();
+    assert.deepStrictEqual(reward, { success: true, coins: 100, streakDay: 1 });
+    assert.strictEqual(STORAGE.canClaimDailyReward(), false);
+    assert.strictEqual(STORAGE.state.daily.streakDay, 1);
+    assert.strictEqual(CFG.ECONOMY.DAILY_REWARD_COINS[1], 125);
+  } finally {
+    STORAGE.state.daily = originalDaily;
+    STORAGE.state.coins = originalCoins;
+    STORAGE.save();
+  }
+});
+
+test('Daily, weekly, career, and achievement rewards support longer progression', () => {
+  const { dailyList, weeklyList, milestoneList } = TASKS.getActiveTasks();
+  assert.strictEqual(CFG.ECONOMY.DAILY_REWARD_COINS.length, 30);
+  assert.strictEqual(dailyList.length, 9);
+  assert.strictEqual(weeklyList.length, 5);
+  assert.strictEqual(milestoneList.length, 6);
+  assert(CFG.ACHIEVEMENTS.length >= 12);
+});
+
+test('Android Back from gameplay returns Home and preserves the active run', () => {
+  const originalDocument = globalThis.document;
+  const originalRun = GAME.run;
+  const originalStopTimer = GAME.stopTimer;
+  const originalPersist = GAME.persistActiveRun;
+  const originalCloseModal = UI.closeModal;
+  const originalSwitchScreen = UI.switchScreen;
+  const screenClasses = { 'screen-game': true, 'modal-backdrop': true };
+  const switchedScreens = [];
+  let persisted = false;
+  let timerStopped = false;
+  globalThis.document = {
+    getElementById: (id) => ({ classList: { contains: () => Boolean(screenClasses[id]) } })
+  };
+  GAME.run = { status: 'playing' };
+  GAME.stopTimer = () => { timerStopped = true; };
+  GAME.persistActiveRun = () => { persisted = true; };
+  UI.closeModal = () => { };
+  UI.switchScreen = (screenId) => switchedScreens.push(screenId);
+
+  try {
+    assert.strictEqual(UI.handleBackButton(), true);
+    assert.strictEqual(timerStopped, true);
+    assert.strictEqual(persisted, true);
+    assert.deepStrictEqual(switchedScreens, ['screen-home']);
+  } finally {
+    globalThis.document = originalDocument;
+    GAME.run = originalRun;
+    GAME.stopTimer = originalStopTimer;
+    GAME.persistActiveRun = originalPersist;
+    UI.closeModal = originalCloseModal;
+    UI.switchScreen = originalSwitchScreen;
+  }
 });
 
 // 8. Save Corruption Recovery & Version Migration
@@ -261,69 +339,33 @@ test('StorageManager recovers gracefully from corrupted JSON and migrates v1 sav
   assert.strictEqual(recovered.coins, CFG.ECONOMY.STARTING_COINS);
 });
 
-// 9. AdMob Rewarded Ad Security & Duplicate Callback Prevention
-test('AdManager grants reward only on completion, blocks duplicate callbacks, and denies early close', async () => {
-  STORAGE.load();
-  STORAGE.state.consent.devSimulatorMode = 'early_close';
-  let rewardCount = 0;
-  const earlyRes = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
-  assert.strictEqual(earlyRes.granted, false, 'Early close must NOT grant reward');
-  assert.strictEqual(rewardCount, 0);
-
-  STORAGE.state.consent.devSimulatorMode = 'no_fill';
-  const noFillRes = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
-  assert.strictEqual(noFillRes.granted, false, 'No-fill must NOT grant reward');
-  assert.strictEqual(rewardCount, 0);
-
-  const originalGetNativePlugin = ADS.getNativePlugin;
-  const originalInitialize = ADS.initialize;
-  let bannerCalls = 0;
-  let rewardedPrepareCalls = 0;
-  let rewardedShowCalls = 0;
-  const nativeMock = {
-    showBanner: async () => {
-      bannerCalls++;
-      throw new Error('no fill');
-    },
-    hideBanner: async () => { },
-    prepareRewardVideoAd: async () => {
-      rewardedPrepareCalls++;
-      throw new Error('no fill');
-    },
-    showRewardVideoAd: async () => {
-      rewardedShowCalls++;
-      return {};
-    }
+// 9. Start.io rewarded event contract
+test('Start.io grants coins only after the native earned event', async () => {
+  const adsSource = fs.readFileSync(path.join(ROOT, 'src/js/ads.js'), 'utf8');
+  const listeners = {};
+  const plugin = {
+    addListener: async (name, callback) => { listeners[name] = callback; },
+    initParams: async () => { },
+    loadInterstitialAd: async () => ({ status: 'loaded' }),
+    loadRewardedVideoAd: async () => { listeners.rewardedVideoLoaded(); },
+    showRewardedVideoAd: async () => { listeners.rewardedVideoEarned({ earned: true }); },
+    showBannerAd: async () => { },
+    hideBannerAd: async () => { }
   };
+  const sandbox = {
+    window: { BBU_CONFIG: CFG, Capacitor: { Plugins: { StartioAds: plugin } } },
+    BBU_CONFIG: CFG,
+    console,
+    setTimeout: () => 0
+  };
+  vm.runInNewContext(adsSource, sandbox);
 
-  try {
-    ADS.getNativePlugin = () => nativeMock;
-    ADS.initialize = async () => false;
-    assert.strictEqual(await ADS.showBanner(), false, 'Banner request must stop if SDK initialization fails');
-    const initFailureReward = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
-    assert.strictEqual(initFailureReward.granted, false);
-    assert.strictEqual(bannerCalls, 0, 'Native banner must not be called before successful initialization');
-    assert.strictEqual(rewardedPrepareCalls, 0, 'Rewarded request must not be called before successful initialization');
-
-    ADS.initialize = async () => true;
-    assert.strictEqual(await ADS.showBanner(), false, 'Banner no-fill must be harmless');
-    let failCallbackCount = 0;
-    const nativeNoFillReward = await ADS.showRewardedAd('coins_250', () => { rewardCount++; }, () => { failCallbackCount++; });
-    assert.strictEqual(nativeNoFillReward.granted, false, 'Rewarded no-fill must not grant a reward');
-    assert.strictEqual(failCallbackCount, 1);
-    assert.strictEqual(rewardedShowCalls, 0, 'Rewarded ad must not show after a failed preload');
-    assert.strictEqual(ADS.bannerHeightPx, 0, 'No-fill must collapse the banner slot');
-  } finally {
-    ADS.getNativePlugin = originalGetNativePlugin;
-    ADS.initialize = originalInitialize;
-    if (ADS.retryTimer) clearTimeout(ADS.retryTimer);
-    ADS.retryTimer = null;
-  }
-
-  STORAGE.state.consent.devSimulatorMode = 'success';
-  const okRes = await ADS.showRewardedAd('coins_250', () => { rewardCount++; });
-  assert.strictEqual(okRes.granted, true, 'Completed rewarded ad must grant reward once');
-  assert.strictEqual(rewardCount, 1);
+  let rewardAmount = 0;
+  const result = await sandbox.window.BBU_ADS.showRewarded((reward) => {
+    rewardAmount = reward.amount;
+  }, (message) => assert.fail(message));
+  assert.strictEqual(result, true);
+  assert.strictEqual(rewardAmount, 100);
 });
 
 Promise.all(pendingTests).then(() => {

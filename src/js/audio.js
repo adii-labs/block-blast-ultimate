@@ -182,6 +182,16 @@
       }
     },
 
+    stopMusic() {
+      if (this.bgmElement) {
+        try {
+          this.bgmElement.pause();
+          this.bgmElement.currentTime = 0;
+        } catch (e) { }
+      }
+      this.stopSynthBgm();
+    },
+
     startSynthBgm(vol) {
       this.stopSynthBgm();
       const notes = [261.63, 329.63, 392.00, 493.88, 392.00, 329.63, 293.66, 349.23, 440.00, 523.25];

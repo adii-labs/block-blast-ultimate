@@ -4,6 +4,4 @@
     <string name="title_activity_main">Block Blast Ultimate</string>
     <string name="package_name">com.blockblast.ultimate</string>
     <string name="custom_url_scheme">com.blockblast.ultimate</string>
-    <!-- Supplied Production Google AdMob App ID -->
-    <string name="admob_app_id">ca-app-pub-5668739021259460~4395181121</string>
 </resources>

@@ -1,6 +1,6 @@
-# Block Blast Ultimate — Child-Friendly 3D Toy & Jewel Edition (HTML5 + Capacitor Android + AdMob)
+# Block Blast Ultimate — Child-Friendly 3D Toy & Jewel Edition (HTML5 + Capacitor Android + Start.io)
 
-**Block Blast Ultimate** is a complete, offline-first, child-friendly 3D toy-and-jewel mobile block puzzle game built with modular HTML5, CSS3, and JavaScript, packaged for Android via **Capacitor** and **`@capacitor-community/admob`**.
+**Block Blast Ultimate** is an offline-first, child-friendly 3D block puzzle game built with modular HTML5, CSS3, and JavaScript, packaged for Android via Capacitor 7 and Start.io.
 
 ---
 
@@ -17,36 +17,27 @@
    - **Finger-Lift Offset:** Scales the dragged block to `0.92x` and lifts it `-1.15 * cellSize` above the touch point so a child's finger never covers the block.
    - **Predictive Line-Clear Highlight (`getPredictiveClears`):** While dragging over a valid spot, any row or column that will be completed glows gold (`#fde047` shadow + `#fef08a` border) before you drop the piece.
    - **Juicy Line Clears:** Spawns 12 radial gravity particles per cleared cell, expanding golden shockwave rings, damped screen bounce (`screenShake *= 0.85`), and brief kid-friendly praise banners (`NICE!`, `GREAT!`, `SUPER BLAST!`, `COMBO x3!`, `ALL CLEAR! +300`).
-4. **Removed All Technical AdMob Info from Player UI:**
-   - Removed AdMob App ID, Banner Ad Unit ID, Rewarded Ad Unit ID, SDK diagnostics, test/sim mode buttons, and fake banner placeholders from the Home Screen, Settings modal, bottom banner bar, and reward overlays.
-   - Player-facing **Settings** contains only friendly controls: Sound Effects ON/OFF + Volume slider, Music ON/OFF + Volume slider, Vibration (Haptics) ON/OFF, Reduced Animations ON/OFF, High-Contrast Colors ON/OFF, Bigger Text ON/OFF, Sky/Starry Theme switcher, and Privacy & Ad Preferences.
-5. **Repaired Native Android AdMob Integration (`src/js/ads.js`, `android/*`, `capacitor.config.json`):**
-   - Binds official `@capacitor-community/admob` v6+ native event listeners (`bannerAdLoaded`, `bannerAdFailedToLoad`, `bannerAdSizeChanged`, `onRewardedVideoAdLoaded`, `onRewardedVideoAdFailedToLoad`, `onRewardedVideoAdReward`, `onRewardedVideoAdDismissed`, `onRewardedVideoAdFailedToShow`).
-   - Dynamically reserves bottom banner height only when a real native adaptive banner loads and collapses to `0px` when offline or in browser preview.
-   - Preloads rewarded ads with exponential backoff retry and grants rewards strictly upon verified SDK completion with single-token duplicate protection.
+4. **Start.io Ads:**
+   - Android-only ads through `@martinezmanoloa/capacitor-startio-ads`.
+   - Shows banners on Home and gameplay with explicit hide-before-switch behavior; interstitials are requested only at startup and after a level win.
+   - Grants rewarded coins only when the plugin emits `rewardedVideoEarned`. Browser preview remains playable and does not simulate ad rewards.
 
 ---
 
-## 2. Google AdMob ID Configuration Reference (Code-Only, Hidden from Players)
+## 2. Start.io Configuration
 
-| AdMob Identifier Type | Supplied Production ID | Exact File Location(s) | Purpose |
-| :--- | :--- | :--- | :--- |
-| **AdMob App ID** | `ca-app-pub-5668739021259460~4395181121` | 1. `android/app/src/main/res/values/strings.xml` (`admob_app_id`)<br>2. `android/app/src/main/AndroidManifest.xml` (`com.google.android.gms.ads.APPLICATION_ID`)<br>3. `capacitor.config.json` (`plugins.AdMob.appIdAndroid`)<br>4. `src/js/config.js` (`ADMOB_CONFIG.PRODUCTION.APP_ID`) | Initializes the native Android Google Mobile Ads SDK |
-| **Banner Ad Unit ID** | `ca-app-pub-5668739021259460/6342687612` | `src/js/config.js` (`ADMOB_CONFIG.PRODUCTION.BANNER_AD_UNIT_ID`) consumed by `src/js/ads.js` (`AdManager.showBanner()`) | Anchored bottom adaptive banner on Android |
-| **Rewarded Ad Unit ID** | `ca-app-pub-5668739021259460/8777279260` | `src/js/config.js` (`ADMOB_CONFIG.PRODUCTION.REWARDED_AD_UNIT_ID`) consumed by `src/js/ads.js` (`AdManager.showRewardedAd()`) | User-initiated rewarded ads for:<ul><li>**Watch Ad — Get 250 Coins** (`coins_250`)</li><li>**Spinner Extra Spin** (`spinner_extra`)</li><li>**Power-Up Refills** (`refill_rocket`, `refill_hammer`, `refill_bomb_basic`, `refill_bomb_mega`, `refill_undo`)</li><li>**Classic Mode Continue** (`classic_continue`)</li></ul> |
-| **Interstitial Ads** | *None (Strictly Disabled)* | `src/js/config.js` (`INTERSTITIAL_ADS_ENABLED: false`) | No interstitial or forced full-screen ads anywhere |
-
-> **Development Test Ads Note:** During Android Studio development testing, you can temporarily set `USE_GOOGLE_TEST_IDS: true` in `src/js/config.js` to test with Google's sample test ad units, and keep `USE_GOOGLE_TEST_IDS: false` for production builds.
+The Start.io app ID and rewarded coin amount are configured in `src/js/config.js`. Set `TEST_MODE` to `true` for development and back to `false` for production. The native plugin currently requires Capacitor 7 and supplies its Start.io Android SDK dependency.
 
 ---
 
 ## 3. Step-by-Step Instructions: How to Build a Debug APK & Signed AAB
 
-1. Install **Node.js (v18/v20 LTS)** and **Android Studio** (with Android SDK Platform 34).
+1. Install **Node.js 20+**, **JDK 21**, and **Android Studio** (with Android SDK Platform 34 or later).
 2. Extract `Block_Blast_Ultimate_Project.zip`, open a terminal in the project folder, and run:
    ```bash
    npm install
-   npm run cap:sync
+   npm run build
+   npx cap sync android
    ```
 3. Open the Android project in Android Studio:
    ```bash

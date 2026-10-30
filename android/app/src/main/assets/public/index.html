@@ -200,9 +200,13 @@
         </button>
       </div>
 
+      <button type="button" class="btn btn-gold home-watch-ad" id="btn-home-watch-ad">
+        <img src="assets/images/ad_video.png" alt="Video"> Watch Ad +100
+      </button>
+
       <!-- Hidden Direct Triggers Preserved for Submenu & Automated Testing Compatibility -->
       <div style="display:none;" aria-hidden="true">
-        <button type="button" id="btn-watch-ad-250"></button>
+        <button type="button" id="btn-watch-ad-100"></button>
         <button type="button" id="tile-tasks"><span id="badge-tasks"></span></button>
         <button type="button" id="tile-achievements"><span id="badge-achievements"></span></button>
         <button type="button" id="tile-help"></button>
@@ -266,8 +270,6 @@
       </div>
     </section>
 
-    <!-- Reserved Native Android AdMob Adaptive Banner Slot (Collapsed to 0px unless a real native banner loads) -->
-    <footer id="admob-banner-slot" class="banner-collapsed" aria-hidden="true"></footer>
   </div>
 
   <!-- Floating Drag Ghost Canvas (Lifted -1.15 * cellSize above finger) -->
@@ -289,25 +291,6 @@
         </button>
       </div>
       <div id="modal-body" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
-  </div>
-
-  <!-- Friendly Reward Video Overlay with 3D 'X' Close Icon -->
-  <div id="ad-sim-backdrop" class="modal-backdrop">
-    <div class="modal-card" style="text-align:center;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span
-          style="font-size:0.88rem;color:var(--gold);font-weight:900;display:inline-flex;align-items:center;gap:6px;">
-          <img src="assets/images/coin.png" alt="Bonus" style="width:22px;height:22px;"> BONUS VIDEO
-        </span>
-        <button type="button" class="btn-close-x" id="btn-ad-sim-close" title="Close">
-          <img src="assets/images/close.png" alt="X">
-        </button>
-      </div>
-      <img src="assets/images/ad_video.png" alt="Bonus Video" style="width:68px;height:68px;margin:8px auto;">
-      <div id="ad-sim-unit" style="font-size:0.95rem;color:var(--text-main);font-weight:800;">Watch to get your prize!
-      </div>
-      <div id="ad-sim-timer" style="font-size:1.2rem;font-weight:900;color:var(--accent);margin:6px 0;">2s...</div>
     </div>
   </div>
 

@@ -14,13 +14,34 @@
     { id: 'd_score_1200', metric: 'scoreEarned', target: 1200, rewardCoins: 100, title: 'Score 1,200 Points Today' },
     { id: 'd_combo_2', metric: 'combosTriggered', target: 2, rewardCoins: 90, title: 'Trigger 2 Combo Streaks Today' },
     { id: 'd_powerup_1', metric: 'powerupsUsed', target: 1, rewardCoins: 75, title: 'Use 1 Power-Up Today' },
-    { id: 'd_blocks_25', metric: 'blocksPlaced', target: 25, rewardCoins: 85, title: 'Place 25 Block Pieces Today' }
+    { id: 'd_blocks_25', metric: 'blocksPlaced', target: 25, rewardCoins: 85, title: 'Place 25 Block Pieces Today' },
+    { id: 'd_levels_1', metric: 'levelsWon', target: 1, rewardCoins: 150, title: 'Beat an Adventure Level Today' },
+    { id: 'd_score_2500', metric: 'scoreEarned', target: 2500, rewardCoins: 130, title: 'Score 2,500 Points Today' },
+    { id: 'd_combo_3', metric: 'combosTriggered', target: 3, rewardCoins: 120, title: 'Trigger 3 Combo Streaks Today' },
+    { id: 'd_powerup_3', metric: 'powerupsUsed', target: 3, rewardCoins: 130, title: 'Use 3 Power-Ups Today' }
   ];
 
   const WEEKLY_TASK_TEMPLATES = [
     { id: 'w_clear_60', metric: 'linesCleared', target: 60, rewardCoins: 300, title: 'Weekly: Clear 60 Lines' },
     { id: 'w_levels_4', metric: 'levelsWon', target: 4, rewardCoins: 350, title: 'Weekly: Beat 4 Adventure Levels' },
-    { id: 'w_score_8000', metric: 'scoreEarned', target: 8000, rewardCoins: 400, title: 'Weekly: Earn 8,000 Total Points' }
+    { id: 'w_score_8000', metric: 'scoreEarned', target: 8000, rewardCoins: 400, title: 'Weekly: Earn 8,000 Total Points' },
+    { id: 'w_powerups_20', metric: 'powerupsUsed', target: 20, rewardCoins: 500, title: 'Weekly: Use 20 Power-Ups' },
+    { id: 'w_blocks_300', metric: 'blocksPlaced', target: 300, rewardCoins: 450, title: 'Weekly: Place 300 Block Pieces' }
+  ];
+
+  const DAILY_REPEAT_TEMPLATES = [
+    { id: 'd_bonus_lines', metric: 'linesCleared', target: 4, rewardCoins: 55, title: 'Bonus: Clear 4 More Lines' },
+    { id: 'd_bonus_score', metric: 'scoreEarned', target: 700, rewardCoins: 60, title: 'Bonus: Score 700 More Points' },
+    { id: 'd_bonus_blocks', metric: 'blocksPlaced', target: 12, rewardCoins: 50, title: 'Bonus: Place 12 More Pieces' },
+    { id: 'd_bonus_combo', metric: 'combosTriggered', target: 1, rewardCoins: 65, title: 'Bonus: Trigger One Combo' },
+    { id: 'd_bonus_power', metric: 'powerupsUsed', target: 1, rewardCoins: 55, title: 'Bonus: Use One Power-Up' }
+  ];
+
+  const WEEKLY_REPEAT_TEMPLATES = [
+    { id: 'w_bonus_lines', metric: 'linesCleared', target: 15, rewardCoins: 120, title: 'Bonus: Clear 15 More Lines' },
+    { id: 'w_bonus_score', metric: 'scoreEarned', target: 3000, rewardCoins: 140, title: 'Bonus: Score 3,000 More Points' },
+    { id: 'w_bonus_blocks', metric: 'blocksPlaced', target: 80, rewardCoins: 120, title: 'Bonus: Place 80 More Pieces' },
+    { id: 'w_bonus_power', metric: 'powerupsUsed', target: 8, rewardCoins: 150, title: 'Bonus: Use 8 Power-Ups' }
   ];
 
   // Infinite repeatable/escalating milestone templates (1-to-unlimited future tasks)
@@ -51,6 +72,33 @@
       baseReward: 100,
       stepReward: 25,
       titleFn: (target, tier) => `Block Architect Tier ${tier}: Place ${target} Blocks`
+    },
+    {
+      baseId: 'm_career_games',
+      metric: 'gamesPlayed',
+      baseTarget: 5,
+      stepTarget: 10,
+      baseReward: 120,
+      stepReward: 30,
+      titleFn: (target, tier) => `Game Explorer Tier ${tier}: Start ${target} Games`
+    },
+    {
+      baseId: 'm_career_powerups',
+      metric: 'powerupsUsed',
+      baseTarget: 10,
+      stepTarget: 15,
+      baseReward: 150,
+      stepReward: 40,
+      titleFn: (target, tier) => `Power Pro Tier ${tier}: Use ${target} Power-Ups`
+    },
+    {
+      baseId: 'm_career_combo',
+      metric: 'maxComboReached',
+      baseTarget: 3,
+      stepTarget: 2,
+      baseReward: 180,
+      stepReward: 50,
+      titleFn: (target, tier) => `Combo Champion Tier ${tier}: Reach x${target}`
     }
   ];
 
@@ -64,11 +112,15 @@
       if (st.dailyDateKey !== todayKey) {
         st.dailyDateKey = todayKey;
         st.dailyProgress = {};
+        st.dailyGeneratedTasks = [];
+        st.dailyReplacementCount = 0;
         changed = true;
       }
       if (st.weeklyKey !== weekKey) {
         st.weeklyKey = weekKey;
         st.weeklyProgress = {};
+        st.weeklyGeneratedTasks = [];
+        st.weeklyReplacementCount = 0;
         changed = true;
       }
       if (changed) STORAGE.save();
@@ -85,6 +137,44 @@
       STORAGE.save();
     },
 
+    createReplacementTask(category) {
+      const st = STORAGE.state.tasks;
+      const isDaily = category === 'daily';
+      const templates = isDaily ? DAILY_REPEAT_TEMPLATES : WEEKLY_REPEAT_TEMPLATES;
+      const tasksKey = isDaily ? 'dailyGeneratedTasks' : 'weeklyGeneratedTasks';
+      const countKey = isDaily ? 'dailyReplacementCount' : 'weeklyReplacementCount';
+      const metricProgress = isDaily ? st.dailyProgress : st.weeklyProgress;
+      const periodKey = isDaily ? st.dailyDateKey : st.weeklyKey;
+      const number = st[countKey] || 0;
+      const template = templates[number % templates.length];
+
+      st[countKey] = number + 1;
+      st[tasksKey].push({
+        uid: `${category}_${periodKey}_bonus_${number + 1}`,
+        category,
+        metric: template.metric,
+        title: template.title,
+        target: template.target,
+        rewardCoins: template.rewardCoins,
+        startProgress: Number(metricProgress[template.metric] || 0)
+      });
+    },
+
+    getGeneratedTasks(category) {
+      const st = STORAGE.state.tasks;
+      const isDaily = category === 'daily';
+      const generated = st[isDaily ? 'dailyGeneratedTasks' : 'weeklyGeneratedTasks'];
+      const metricProgress = isDaily ? st.dailyProgress : st.weeklyProgress;
+      return generated.map(task => {
+        const progress = Math.min(task.target, Math.max(0, Number(metricProgress[task.metric] || 0) - task.startProgress));
+        return Object.assign({}, task, {
+          progress,
+          completed: progress >= task.target,
+          claimed: false
+        });
+      });
+    },
+
     getActiveTasks() {
       this.ensurePeriodsSynced();
       const st = STORAGE.state.tasks;
@@ -92,7 +182,7 @@
       const todayKey = st.dailyDateKey;
       const weekKey = st.weeklyKey;
 
-      const dailyList = DAILY_TASK_TEMPLATES.map(tpl => {
+      const dailyList = DAILY_TASK_TEMPLATES.filter(tpl => !st.claimedTaskIds[`daily_${todayKey}_${tpl.id}`]).map(tpl => {
         const claimKey = `daily_${todayKey}_${tpl.id}`;
         const progress = Math.min(tpl.target, st.dailyProgress[tpl.metric] || 0);
         const completed = progress >= tpl.target;
@@ -109,7 +199,7 @@
         };
       });
 
-      const weeklyList = WEEKLY_TASK_TEMPLATES.map(tpl => {
+      const weeklyList = WEEKLY_TASK_TEMPLATES.filter(tpl => !st.claimedTaskIds[`weekly_${weekKey}_${tpl.id}`]).map(tpl => {
         const claimKey = `weekly_${weekKey}_${tpl.id}`;
         const progress = Math.min(tpl.target, st.weeklyProgress[tpl.metric] || 0);
         const completed = progress >= tpl.target;
@@ -149,6 +239,8 @@
         };
       });
 
+      dailyList.push(...this.getGeneratedTasks('daily'));
+      weeklyList.push(...this.getGeneratedTasks('weekly'));
       return { dailyList, weeklyList, milestoneList };
     },
 
@@ -166,6 +258,10 @@
       STORAGE.state.tasks.claimedTaskIds[uid] = true;
       if (found.category === 'milestone' && found.baseId) {
         STORAGE.state.tasks.milestoneTierByTemplate[found.baseId] = (found.tier || 1) + 1;
+      } else if (found.category === 'daily' || found.category === 'weekly') {
+        const generatedKey = found.category === 'daily' ? 'dailyGeneratedTasks' : 'weeklyGeneratedTasks';
+        STORAGE.state.tasks[generatedKey] = STORAGE.state.tasks[generatedKey].filter(task => task.uid !== uid);
+        this.createReplacementTask(found.category);
       }
       const newBalance = STORAGE.addCoins(found.rewardCoins);
       STORAGE.save();

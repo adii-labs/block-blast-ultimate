@@ -6,9 +6,5 @@
   "server": {
     "androidScheme": "https"
   },
-  "plugins": {
-    "AdMob": {
-      "appIdAndroid": "ca-app-pub-5668739021259460~4395181121"
-    }
-  }
+  "plugins": {}
 }

@@ -23,7 +23,6 @@
   --cell-empty: rgba(255, 255, 255, 0.08);
   --cell-border: rgba(255, 255, 255, 0.22);
   --font-scale: 1;
-  --banner-height: 0px;
   --theme-bg-image: none;
   --home-classic-gradient: linear-gradient(180deg, #4ade80 0%, #22c55e 52%, #15803d 100%);
   --home-classic-shadow: #14532d;
@@ -85,7 +84,7 @@ body {
   flex-direction: column;
   justify-content: space-between;
   padding-top: env(safe-area-inset-top, 8px);
-  padding-bottom: calc(var(--banner-height) + env(safe-area-inset-bottom, 6px));
+  padding-bottom: env(safe-area-inset-bottom, 6px);
   background-color: var(--bg-primary);
   background-image: linear-gradient(180deg, rgba(4, 10, 30, 0.12), rgba(4, 10, 30, 0.42)),
     var(--theme-bg-image),
@@ -925,23 +924,19 @@ body.theme-light .list-item-card {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
 }
 
-/* Reserved Native Bottom Adaptive Banner Region (Hidden when 0px / collapsed) */
-#admob-banner-slot {
+.home-watch-ad {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 440px;
-  height: var(--banner-height);
-  background: transparent;
-  pointer-events: none;
-  z-index: 90;
+  right: max(14px, calc((100vw - 440px) / 2 + 14px));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 95;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  box-shadow: 0 4px 0 rgba(120, 53, 15, 0.7), 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
-#admob-banner-slot.banner-collapsed {
-  display: none;
-  height: 0;
+.home-watch-ad img {
+  width: 20px;
+  height: 20px;
 }
 
 /* Floating Drag Piece Canvas */

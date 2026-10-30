@@ -74,7 +74,6 @@
       this.updateTopBar();
       this.updateHomeBadges();
       this.startRenderLoop();
-      ADS.showBanner();
     },
 
     applySettingsAndTheme() {
@@ -165,12 +164,14 @@
       }
     },
 
-    switchScreen(screenId) {
+    async switchScreen(screenId) {
       document.querySelectorAll('.screen').forEach(el => {
         el.classList.toggle('active', el.id === screenId);
       });
       const pauseBtn = document.getElementById('btn-top-pause');
       const homeBtn = document.getElementById('btn-top-home');
+      const homeAdBtn = document.getElementById('btn-home-watch-ad');
+      if (homeAdBtn) homeAdBtn.style.display = screenId === 'screen-home' ? 'inline-flex' : 'none';
       if (screenId === 'screen-game') {
         if (pauseBtn) pauseBtn.style.display = 'inline-flex';
         if (homeBtn) homeBtn.style.display = 'inline-flex';
@@ -183,6 +184,13 @@
         if (homeBtn) homeBtn.style.display = 'none';
         this.updateHomeBadges();
         this.updateTopBar();
+      }
+      if (screenId === 'screen-game') {
+        await ADS.hideBanner();
+        await ADS.showBanner('TOP');
+      } else if (screenId === 'screen-home') {
+        await ADS.hideBanner();
+        await ADS.showBanner('BOTTOM');
       }
     },
 
@@ -1259,6 +1267,28 @@
       }
     },
 
+    handleBackButton() {
+      const gameScreen = document.getElementById('screen-game');
+      const modalBackdrop = document.getElementById('modal-backdrop');
+      const gameIsActive = Boolean(gameScreen && gameScreen.classList.contains('active'));
+      const modalIsOpen = Boolean(modalBackdrop && modalBackdrop.classList.contains('open'));
+
+      if (gameIsActive) {
+        GAME.stopTimer();
+        GAME.persistActiveRun();
+        this.closeModal();
+        this.switchScreen('screen-home');
+        return true;
+      }
+
+      if (modalIsOpen) {
+        this.closeModal();
+        return true;
+      }
+
+      return false;
+    },
+
     /**
      * Power-Up Refill Modal with clear Coin Confirmation & Rewarded Ad Option.
      */
@@ -1307,8 +1337,7 @@
       };
 
       document.getElementById('btn-buy-pw-ad').onclick = () => {
-        ADS.showRewardedAd(
-          `refill_${powerupId}`,
+        ADS.showRewarded(
           () => {
             STORAGE.state.inventory[powerupId] = (STORAGE.state.inventory[powerupId] || 0) + pw.adRefillAmount;
             STORAGE.save();
@@ -1317,9 +1346,7 @@
             this.closeModal();
             this.showToast(`+${pw.adRefillAmount} ${pw.name}!`);
           },
-          (errReason) => {
-            this.showToast(errReason);
-          }
+          (errReason) => this.showToast(errReason)
         );
       };
     },
@@ -1404,7 +1431,7 @@
 
     /**
      * Modes & Prizes Submenu: Icon-rich grid for Timed Blitz, Bomb Rescue, Missions, Trophies,
-     * Watch Ad (+250 Coins), and Visual How-to-Play.
+    * Watch Ad (+100 Coins), and Visual How-to-Play.
      */
     showModesModal() {
       const { dailyList, weeklyList, milestoneList } = TASKS.getActiveTasks();
@@ -1432,8 +1459,8 @@
             <span style="font-size:0.92rem;">Trophies</span>
           </button>
         </div>
-        <button type="button" class="btn btn-success" id="sub-btn-watch-250" style="width:100%;margin-top:4px;">
-          <img src="assets/images/ad_video.png" alt="Video"> +250 <img src="assets/images/coin.png" alt="Coins" style="width:22px;height:22px;">
+        <button type="button" class="btn btn-success" id="sub-btn-watch-100" style="width:100%;margin-top:4px;">
+          <img src="assets/images/ad_video.png" alt="Video"> Watch Ad +100 <img src="assets/images/coin.png" alt="Coins" style="width:22px;height:22px;">
         </button>
         <button type="button" class="btn btn-secondary" id="sub-btn-help" style="width:100%;">
           <img src="assets/images/help.png" alt="Help"> Guide
@@ -1456,8 +1483,8 @@
       document.getElementById('sub-btn-trophies').onclick = () => {
         this.showAchievementsModal();
       };
-      document.getElementById('sub-btn-watch-250').onclick = () => {
-        this.triggerWatchAdFor250Coins();
+      document.getElementById('sub-btn-watch-100').onclick = () => {
+        this.triggerWatchAdFor100Coins();
       };
       document.getElementById('sub-btn-help').onclick = () => {
         this.showHelpModal();
@@ -1468,12 +1495,13 @@
       const canClaim = STORAGE.canClaimDailyReward();
       const rewards = CFG.ECONOMY.DAILY_REWARD_COINS;
       const streak = STORAGE.state.daily.streakDay % rewards.length;
+      const currentDay = canClaim ? streak : (streak + rewards.length - 1) % rewards.length;
       const checkImg = 'assets/images/check.png';
       const coinImg = 'assets/images/coin.png';
 
       const daysHtml = rewards.map((amt, idx) => {
-        const isCurrent = idx === streak;
-        const isPast = idx < streak;
+        const isCurrent = idx === currentDay;
+        const isPast = idx < currentDay;
         return `
           <div class="list-item-card" style="border-color:${isCurrent ? 'var(--gold)' : 'rgba(255,255,255,0.14)'};">
             <div style="display:flex;align-items:center;gap:8px;">
@@ -1487,9 +1515,14 @@
 
       this.openModal('Daily Gift', 'assets/images/chest.png', `
         <div class="card-list">${daysHtml}</div>
+        <div class="list-item-card" style="justify-content:center;text-align:center;font-weight:900;color:var(--gold);">
+          ${canClaim
+          ? `Day ${streak + 1} reward is ready: +${rewards[streak]} coins.`
+          : `Today's Day ${currentDay + 1} gift is collected. Tomorrow: +${rewards[(streak + 1) % rewards.length]} coins.`}
+        </div>
         <button type="button" class="btn ${canClaim ? 'btn-gold' : 'btn-secondary'}" id="btn-claim-daily-now" ${canClaim ? '' : 'disabled'}>
           <img src="assets/images/chest.png" alt="Gift">
-          ${canClaim ? `CLAIM +${rewards[streak]}` : 'COME BACK TOMORROW'}
+          ${canClaim ? `CLAIM DAY ${streak + 1}` : 'COLLECTED TODAY'}
         </button>
       `);
 
@@ -1522,6 +1555,9 @@
             </button>
             <button type="button" class="btn btn-success" id="btn-spin-ad">
               <img src="assets/images/ad_video.png" alt="Ad"> FREE SPIN (VIDEO)
+            </button>
+            <button type="button" class="btn btn-gold" id="btn-spin-watch-ad">
+              <img src="assets/images/ad_video.png" alt="Video"> Watch Ad +100 Coins
             </button>
             <button type="button" class="btn btn-gold" id="btn-spin-coins">
               <img src="assets/images/coin.png" alt="Coin"> ${CFG.ECONOMY.SPINNER_COIN_COST}
@@ -1597,13 +1633,15 @@
       if (adBtn) {
         adBtn.onclick = () => {
           if (this.spinnerSpinning) return;
-          ADS.showRewardedAd(
-            'spinner_extra',
+          ADS.showRewarded(
             () => triggerWheelSpin(),
             (err) => this.showToast(err)
           );
         };
       }
+
+      const coinAdBtn = document.getElementById('btn-spin-watch-ad');
+      if (coinAdBtn) coinAdBtn.onclick = () => this.triggerWatchAdFor100Coins();
 
       const coinBtn = document.getElementById('btn-spin-coins');
       if (coinBtn) {
@@ -1815,7 +1853,7 @@
         ${tabsHtml}
         <div class="card-list">${contentHtml}</div>
         <button type="button" class="btn btn-success" id="btn-shop-watch-ad">
-          <img src="assets/images/ad_video.png" alt="Ad"> +250 <img src="assets/images/coin.png" style="width:20px;height:20px;" alt="Coins">
+          <img src="assets/images/ad_video.png" alt="Ad"> Watch Ad +100 <img src="assets/images/coin.png" style="width:20px;height:20px;" alt="Coins">
         </button>
       `);
 
@@ -1890,26 +1928,23 @@
 
       const adBtn = document.getElementById('btn-shop-watch-ad');
       if (adBtn) {
-        adBtn.onclick = () => this.triggerWatchAdFor250Coins();
+        adBtn.onclick = () => this.triggerWatchAdFor100Coins();
       }
     },
 
-    triggerWatchAdFor250Coins() {
-      ADS.showRewardedAd(
-        'coins_250',
-        () => {
-          STORAGE.addCoins(CFG.ECONOMY.WATCH_AD_COIN_REWARD);
+    triggerWatchAdFor100Coins() {
+      ADS.showRewarded(
+        (reward) => {
+          STORAGE.addCoins(reward.amount);
           AUDIO.play('reward');
           this.updateTopBar();
-          this.showToast(`+${CFG.ECONOMY.WATCH_AD_COIN_REWARD} Coins!`);
+          this.showToast(`You earned ${reward.amount} coins!`);
         },
-        (err) => this.showToast(err)
+        (msg) => this.showToast(msg)
       );
     },
 
-    /**
-     * Player-Friendly Settings Modal (Zero Technical AdMob IDs, SDK diagnostics, or Dev Toggles).
-     */
+    /** Player-friendly Settings Modal. */
     showSettingsModal() {
       const s = STORAGE.state.settings;
       const sfxPct = Math.round((Number(s.sfxVolume) || 0.85) * 100);
@@ -2131,6 +2166,7 @@
     },
 
     showLevelCompleteModal(run) {
+      ADS.showInterstitial();
       const cfg = run.levelConfig;
       const stars = run.starsEarned || 1;
       const starFilledSrc = 'assets/images/star_filled.png';
@@ -2199,6 +2235,9 @@
         ${starsRow}
         <div style="text-align:center;font-family:var(--font-display);font-size:1.55rem;font-weight:900;margin:2px 0;color:var(--gold);">${run.score.toLocaleString()}</div>
         ${continueHtml}
+        <button type="button" class="btn btn-gold" id="btn-gameover-watch-ad">
+          <img src="assets/images/ad_video.png" alt="Video"> Watch Ad +100 Coins
+        </button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
           <button type="button" class="btn btn-secondary" id="btn-go-home">
             <img src="assets/images/home.png" alt="Home"> HOME
@@ -2212,8 +2251,7 @@
       const adContBtn = document.getElementById('btn-continue-ad');
       if (adContBtn) {
         adContBtn.onclick = () => {
-          ADS.showRewardedAd(
-            'classic_continue',
+          ADS.showRewarded(
             () => {
               GAME.continueClassicRun();
               this.closeModal();
@@ -2221,10 +2259,12 @@
               this.updateHud();
               this.showToast('Board cleared! Keep going!');
             },
-            (err) => this.showToast(err)
+            (msg) => this.showToast(msg)
           );
         };
       }
+
+      document.getElementById('btn-gameover-watch-ad').onclick = () => this.triggerWatchAdFor100Coins();
 
       const coinContBtn = document.getElementById('btn-continue-coins');
       if (coinContBtn) {
@@ -2261,54 +2301,6 @@
         this.closeModal();
         this.switchScreen('screen-home');
       };
-    },
-
-    presentSimulatedRewardedAdModal({ placement, onComplete, onDismissEarly }) {
-      return new Promise((resolve) => {
-        const backdrop = document.getElementById('ad-sim-backdrop');
-        const unitEl = document.getElementById('ad-sim-unit');
-        const timerEl = document.getElementById('ad-sim-timer');
-        const closeBtn = document.getElementById('btn-ad-sim-close');
-        if (!backdrop) {
-          resolve(onComplete());
-          return;
-        }
-
-        const rewardLabels = {
-          coins_250: '+250 Bonus Coins!',
-          spinner_extra: '+1 Free Prize Spin!',
-          classic_continue: 'Clear Blocks & Continue!',
-          refill_rocket: '+1 Free Rocket!',
-          refill_hammer: '+1 Free Hammer!',
-          refill_bomb_basic: '+1 Free Bomb!',
-          refill_bomb_mega: '+1 Free Mega Bomb!',
-        };
-
-        if (unitEl) unitEl.textContent = rewardLabels[placement] || 'Bonus Reward!';
-        backdrop.classList.add('open');
-
-        let remaining = 2;
-        if (timerEl) timerEl.textContent = `${remaining}s...`;
-
-        const interval = setInterval(() => {
-          remaining -= 1;
-          if (remaining > 0) {
-            if (timerEl) timerEl.textContent = `${remaining}s...`;
-          } else {
-            clearInterval(interval);
-            backdrop.classList.remove('open');
-            resolve(onComplete());
-          }
-        }, 700);
-
-        if (closeBtn) {
-          closeBtn.onclick = () => {
-            clearInterval(interval);
-            backdrop.classList.remove('open');
-            resolve(onDismissEarly());
-          };
-        }
-      });
     },
 
     bindEvents() {
@@ -2370,7 +2362,8 @@
       });
       bindClick('btn-play-levels', () => this.showLevelSelectModal());
       bindClick('btn-play-modes', () => this.showModesModal());
-      bindClick('btn-watch-ad-250', () => this.triggerWatchAdFor250Coins());
+      bindClick('btn-watch-ad-100', () => this.triggerWatchAdFor100Coins());
+      bindClick('btn-home-watch-ad', () => this.triggerWatchAdFor100Coins());
 
       bindClick('tile-daily', () => this.showDailyRewardModal());
       bindClick('tile-spinner', () => this.showSpinnerModal());
