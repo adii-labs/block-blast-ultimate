@@ -73,6 +73,35 @@ body {
   font-size: calc(15px * var(--font-scale));
 }
 
+#app-launch-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(56, 189, 248, 0.26), transparent 42%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-secondary) 55%, var(--bg-primary));
+  color: var(--text-main);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+#app-launch-screen img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
+}
+
+body.app-ready #app-launch-screen {
+  display: none;
+}
+
 /* Responsive Phone Shell (`max-width: 800px`, `height: 100dvh`) */
 #app-shell {
   position: relative;
@@ -461,6 +490,28 @@ body.theme-light .brand-title {
   justify-content: space-between;
   overflow: hidden;
   padding: 2px 12px 6px;
+}
+
+.native-ad-slot {
+  display: none;
+  flex: 0 0 56px;
+  min-height: 56px;
+  pointer-events: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.07), transparent);
+}
+
+.native-ad-slot.active {
+  display: block;
+}
+
+.game-ad-slot,
+.home-ad-slot {
+  width: 100%;
+}
+
+#screen-home:has(.home-ad-slot.active) .home-watch-ad {
+  bottom: calc(70px + env(safe-area-inset-bottom, 0px));
 }
 
 .game-hud {
@@ -937,6 +988,23 @@ body.theme-light .list-item-card {
 .home-watch-ad img {
   width: 20px;
   height: 20px;
+}
+
+@media (max-height: 700px) {
+  .tray-container {
+    height: 78px;
+    margin: 3px 0;
+  }
+
+  .powerup-btn {
+    padding: 5px 3px;
+  }
+
+  .powerup-btn img,
+  .rotate-icon {
+    width: 29px;
+    height: 29px;
+  }
 }
 
 /* Floating Drag Piece Canvas */

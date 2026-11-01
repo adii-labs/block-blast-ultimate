@@ -186,11 +186,28 @@
         this.updateTopBar();
       }
       if (screenId === 'screen-game') {
+        const gameAdSlot = document.getElementById('game-ad-slot');
+        const homeAdSlot = document.getElementById('home-ad-slot');
+        if (homeAdSlot) homeAdSlot.classList.remove('active');
+        if (gameAdSlot) gameAdSlot.classList.add('active');
         await ADS.hideBanner();
-        await ADS.showBanner('TOP');
+        const topMargin = gameAdSlot
+          ? Math.max(0, Math.round(gameAdSlot.getBoundingClientRect().top))
+          : 0;
+        const shown = await ADS.showBanner('TOP', { topMargin });
+        if (!shown && gameAdSlot) gameAdSlot.classList.remove('active');
+        this.resizeBoardCanvas();
       } else if (screenId === 'screen-home') {
+        const gameAdSlot = document.getElementById('game-ad-slot');
+        const homeAdSlot = document.getElementById('home-ad-slot');
+        if (gameAdSlot) gameAdSlot.classList.remove('active');
+        if (homeAdSlot) homeAdSlot.classList.add('active');
         await ADS.hideBanner();
-        await ADS.showBanner('BOTTOM');
+        const bottomMargin = homeAdSlot
+          ? Math.max(0, Math.round(window.innerHeight - homeAdSlot.getBoundingClientRect().bottom))
+          : 0;
+        const shown = await ADS.showBanner('BOTTOM', { bottomMargin });
+        if (!shown && homeAdSlot) homeAdSlot.classList.remove('active');
       }
     },
 
@@ -198,10 +215,10 @@
       if (!this.canvas) return;
       const stage = document.querySelector('.board-stage');
       const n = (GAME.run && GAME.run.boardSize) || 8;
-      const availW = stage ? Math.max(250, stage.clientWidth - 22) : 320;
-      const availH = stage ? Math.max(250, stage.clientHeight - 22) : 320;
-      const side = Math.min(availW, availH, 396);
-      this.cellPx = Math.floor(side / n);
+      const availW = stage ? Math.max(1, stage.clientWidth - 22) : 320;
+      const availH = stage ? Math.max(1, stage.clientHeight - 22) : 320;
+      const side = Math.max(n, Math.min(availW, availH, 396));
+      this.cellPx = Math.max(1, Math.floor(side / n));
       this.boardPixelSize = this.cellPx * n;
       this.canvas.width = this.boardPixelSize;
       this.canvas.height = this.boardPixelSize;
@@ -1273,16 +1290,15 @@
       const gameIsActive = Boolean(gameScreen && gameScreen.classList.contains('active'));
       const modalIsOpen = Boolean(modalBackdrop && modalBackdrop.classList.contains('open'));
 
-      if (gameIsActive) {
-        GAME.stopTimer();
-        GAME.persistActiveRun();
+      if (modalIsOpen) {
         this.closeModal();
-        this.switchScreen('screen-home');
         return true;
       }
 
-      if (modalIsOpen) {
-        this.closeModal();
+      if (gameIsActive) {
+        GAME.stopTimer();
+        GAME.persistActiveRun();
+        this.switchScreen('screen-home');
         return true;
       }
 
@@ -2165,8 +2181,8 @@
       document.getElementById('btn-conf-yes').onclick = () => onConfirm();
     },
 
-    showLevelCompleteModal(run) {
-      ADS.showInterstitial();
+    async showLevelCompleteModal(run) {
+      await ADS.showInterstitial(2000);
       const cfg = run.levelConfig;
       const stars = run.starsEarned || 1;
       const starFilledSrc = 'assets/images/star_filled.png';

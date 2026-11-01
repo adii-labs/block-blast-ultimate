@@ -20,9 +20,12 @@
       appPlugin.addListener('pause', () => global.BBU_AUDIO.stopMusic());
       appPlugin.addListener('resume', () => global.BBU_AUDIO.syncMusic());
     }
-    await global.BBU_ADS.initialize();
-    global.BBU_ADS.showInterstitial();
-    global.BBU_ADS.showBanner('BOTTOM');
+    try {
+      await global.BBU_ADS.showStartupInterstitial(2000);
+    } finally {
+      document.body.classList.add('app-ready');
+      await global.BBU_UI.switchScreen('screen-home');
+    }
   }
 
   if (typeof document !== 'undefined') {

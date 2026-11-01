@@ -120,6 +120,8 @@ test('Start.io config, plugin wiring, and browser preview are valid', async () =
   assert(indexHtml.includes('assets/images/close.png'), 'index.html must use 3D close.png X icon');
   assert(indexHtml.includes('assets/images/home.png'), 'index.html must use 3D home.png icon');
   assert(indexHtml.includes('assets/images/star_filled.png'), 'index.html must use 3D star_filled.png icon');
+  assert(indexHtml.includes('id="home-ad-slot"'), 'Home screen must reserve space for its native banner');
+  assert(indexHtml.includes('id="game-ad-slot"'), 'Game screen must reserve space for its native banner');
 
   const uiJs = fs.readFileSync(path.join(ROOT, 'src/js/ui.js'), 'utf8');
   assert(!uiJs.includes('assets/images/${'), 'ui.js must not use broken template-interpolated asset paths');
@@ -304,7 +306,7 @@ test('Android Back from gameplay returns Home and preserves the active run', () 
   const originalPersist = GAME.persistActiveRun;
   const originalCloseModal = UI.closeModal;
   const originalSwitchScreen = UI.switchScreen;
-  const screenClasses = { 'screen-game': true, 'modal-backdrop': true };
+  const screenClasses = { 'screen-game': true, 'modal-backdrop': false };
   const switchedScreens = [];
   let persisted = false;
   let timerStopped = false;
@@ -332,6 +334,33 @@ test('Android Back from gameplay returns Home and preserves the active run', () 
   }
 });
 
+test('Android Back closes an open modal before leaving gameplay', () => {
+  const originalDocument = globalThis.document;
+  const originalRun = GAME.run;
+  const originalCloseModal = UI.closeModal;
+  const originalSwitchScreen = UI.switchScreen;
+  const screenClasses = { 'screen-game': true, 'modal-backdrop': true };
+  let modalClosed = false;
+  let screenChanged = false;
+  globalThis.document = {
+    getElementById: (id) => ({ classList: { contains: () => Boolean(screenClasses[id]) } })
+  };
+  GAME.run = { status: 'playing' };
+  UI.closeModal = () => { modalClosed = true; };
+  UI.switchScreen = () => { screenChanged = true; };
+
+  try {
+    assert.strictEqual(UI.handleBackButton(), true);
+    assert.strictEqual(modalClosed, true);
+    assert.strictEqual(screenChanged, false);
+  } finally {
+    globalThis.document = originalDocument;
+    GAME.run = originalRun;
+    UI.closeModal = originalCloseModal;
+    UI.switchScreen = originalSwitchScreen;
+  }
+});
+
 // 8. Save Corruption Recovery & Version Migration
 test('StorageManager recovers gracefully from corrupted JSON and migrates v1 saves', () => {
   const migrated = STORAGE.migrateAndSanitize({ version: 1, coins: 1234, bestScores: { classic: 4500 } });
@@ -347,13 +376,16 @@ test('StorageManager recovers gracefully from corrupted JSON and migrates v1 sav
 test('Start.io grants coins only after the native earned event', async () => {
   const adsSource = fs.readFileSync(path.join(ROOT, 'src/js/ads.js'), 'utf8');
   const listeners = {};
+  let interstitialShows = 0;
+  let bannerOptions;
   const plugin = {
     addListener: async (name, callback) => { listeners[name] = callback; },
     initParams: async () => { },
     loadInterstitialAd: async () => ({ status: 'loaded' }),
+    showInterstitialAd: async () => { interstitialShows += 1; },
     loadRewardedVideoAd: async () => { listeners.rewardedVideoLoaded(); },
     showRewardedVideoAd: async () => { listeners.rewardedVideoEarned({ earned: true }); },
-    showBannerAd: async () => { },
+    showBannerAd: async (options) => { bannerOptions = options; },
     hideBannerAd: async () => { }
   };
   const sandbox = {
@@ -370,6 +402,11 @@ test('Start.io grants coins only after the native earned event', async () => {
   }, (message) => assert.fail(message));
   assert.strictEqual(result, true);
   assert.strictEqual(rewardAmount, 100);
+  assert.strictEqual(await sandbox.window.BBU_ADS.showStartupInterstitial(2000), true);
+  assert.strictEqual(interstitialShows, 1);
+  assert.strictEqual(await sandbox.window.BBU_ADS.showBanner('TOP', { topMargin: 24 }), true);
+  assert.strictEqual(bannerOptions.position, 'TOP');
+  assert.strictEqual(bannerOptions.topMargin, 24);
 });
 
 Promise.all(pendingTests).then(() => {

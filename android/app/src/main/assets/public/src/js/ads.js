@@ -74,15 +74,25 @@
     return initializationPromise;
   }
 
-  async function showBanner(position) {
+  async function showBanner(position, margins) {
     if (!StartioAds || !(await initialize())) return false;
     try {
       await StartioAds.hideBannerAd();
-      await StartioAds.showBannerAd({ position: position === 'TOP' ? 'TOP' : 'BOTTOM' });
+      const options = { position: position === 'TOP' ? 'TOP' : 'BOTTOM' };
+      ['topMargin', 'bottomMargin'].forEach((key) => {
+        if (margins && Number.isFinite(margins[key])) {
+          options[key] = Math.max(0, Math.round(margins[key]));
+        }
+      });
+      await StartioAds.showBannerAd(options);
       return true;
     } catch (error) {
       return false;
     }
+  }
+
+  async function showStartupInterstitial(timeoutMs) {
+    return showInterstitial(Number.isFinite(timeoutMs) ? timeoutMs : 2000);
   }
 
   async function hideBanner() {
@@ -113,9 +123,28 @@
     return interstitialLoadPromise;
   }
 
-  async function showInterstitial() {
-    if (!StartioAds || !(await initialize())) return false;
-    if (!interstitialReady && !(await loadInterstitial())) return false;
+  function withTimeout(promise, timeoutMs) {
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      })
+    ]).finally(() => {
+      if (typeof clearTimeout === 'function') clearTimeout(timer);
+    });
+  }
+
+  async function showInterstitial(timeoutMs) {
+    if (!StartioAds) return false;
+    const waitMs = Number.isFinite(timeoutMs) ? Math.max(0, timeoutMs) : 2000;
+    const ready = await withTimeout((async () => {
+      if (!(await initialize())) return false;
+      if (!interstitialReady && !(await loadInterstitial())) return false;
+      return interstitialReady;
+    })(), waitMs);
+    if (!ready || !interstitialReady) return false;
+
     try {
       await StartioAds.showInterstitialAd();
       interstitialReady = false;
@@ -194,6 +223,7 @@
     showBanner: showBanner,
     hideBanner: hideBanner,
     showInterstitial: showInterstitial,
+    showStartupInterstitial: showStartupInterstitial,
     loadInterstitial: loadInterstitial,
     showRewarded: showRewarded,
     loadRewarded: loadRewarded

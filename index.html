@@ -11,6 +11,10 @@
 </head>
 
 <body>
+  <div id="app-launch-screen" role="status" aria-live="polite">
+    <img src="assets/images/logo.png" alt="">
+    <span>Getting your puzzle ready...</span>
+  </div>
   <!-- Embedded 3D Toy-Jewel Vector SVG Defs & Symbols (100% Offline, Zero Emojis) -->
   <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true">
     <defs>
@@ -203,6 +207,7 @@
       <button type="button" class="btn btn-gold home-watch-ad" id="btn-home-watch-ad">
         <img src="assets/images/ad_video.png" alt="Video"> Watch Ad +100
       </button>
+      <div id="home-ad-slot" class="native-ad-slot home-ad-slot" aria-hidden="true"></div>
 
       <!-- Hidden Direct Triggers Preserved for Submenu & Automated Testing Compatibility -->
       <div style="display:none;" aria-hidden="true">
@@ -231,6 +236,8 @@
       </div>
 
       <div id="objectives-strip" class="objectives-strip" style="display:none;"></div>
+
+      <div id="game-ad-slot" class="native-ad-slot game-ad-slot" aria-hidden="true"></div>
 
       <div class="board-stage">
         <div id="powerup-hint-banner" class="powerup-hint-banner" style="display:none;"></div>
