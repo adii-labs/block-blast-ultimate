@@ -92,7 +92,8 @@
   }
 
   async function showStartupInterstitial(timeoutMs) {
-    return showInterstitial(Number.isFinite(timeoutMs) ? timeoutMs : 2000);
+    const waitMs = Number.isFinite(timeoutMs) ? Math.max(0, timeoutMs) : 2000;
+    return withTimeout(showInterstitial(waitMs), waitMs);
   }
 
   async function hideBanner() {

@@ -409,6 +409,77 @@ test('Start.io grants coins only after the native earned event', async () => {
   assert.strictEqual(bannerOptions.topMargin, 24);
 });
 
+test('Startup leaves the splash when the native interstitial call stalls', async () => {
+  const adsSource = fs.readFileSync(path.join(ROOT, 'src/js/ads.js'), 'utf8');
+  const plugin = {
+    addListener: async () => { },
+    initParams: async () => { },
+    loadInterstitialAd: async () => ({ status: 'loaded' }),
+    showInterstitialAd: () => new Promise(() => { }),
+    loadRewardedVideoAd: async () => { }
+  };
+  const sandbox = {
+    window: { BBU_CONFIG: CFG, Capacitor: { Plugins: { StartioAds: plugin } } },
+    BBU_CONFIG: CFG,
+    console,
+    setTimeout,
+    clearTimeout
+  };
+  vm.runInNewContext(adsSource, sandbox);
+
+  assert.strictEqual(await sandbox.window.BBU_ADS.showStartupInterstitial(25), false);
+});
+
+test('App startup reveals Home and stops music on lifecycle changes after a UI error', async () => {
+  const mainSource = fs.readFileSync(path.join(ROOT, 'src/js/main.js'), 'utf8');
+  const appListeners = {};
+  const documentListeners = {};
+  const windowListeners = {};
+  let audioStopped = 0;
+  let homeOpened = false;
+  const document = {
+    readyState: 'complete',
+    hidden: false,
+    body: { classList: { add: (name) => { document.appReady = name === 'app-ready'; } } },
+    addEventListener: (name, callback) => { documentListeners[name] = callback; }
+  };
+  const window = {
+    Capacitor: {
+      Plugins: {
+        App: {
+          addListener: async (name, callback) => { appListeners[name] = callback; },
+          exitApp: async () => { }
+        }
+      }
+    },
+    addEventListener: (name, callback) => { windowListeners[name] = callback; }
+  };
+  Object.assign(window, {
+    BBU_STORAGE: { load: () => { } },
+    BBU_AUDIO: { init: () => { }, stopMusic: () => { audioStopped += 1; }, syncMusic: () => { } },
+    BBU_TASKS: { ensurePeriodsSynced: () => { } },
+    BBU_UI: {
+      init: () => { throw new Error('simulated WebView UI initialization failure'); },
+      handleBackButton: () => false,
+      switchScreen: async (screen) => { homeOpened = screen === 'screen-home'; }
+    },
+    BBU_ADS: { hideBanner: async () => { }, showStartupInterstitial: async () => false }
+  });
+  const sandbox = { window, document, console: { error: () => { }, warn: () => { } } };
+
+  vm.runInNewContext(mainSource, sandbox);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.strictEqual(document.appReady, true);
+  assert.strictEqual(homeOpened, true);
+  assert.strictEqual(typeof appListeners.pause, 'function');
+  assert.strictEqual(typeof appListeners.resume, 'function');
+  document.hidden = true;
+  documentListeners.visibilitychange();
+  assert.strictEqual(audioStopped, 1);
+  assert.strictEqual(typeof windowListeners.pagehide, 'function');
+});
+
 Promise.all(pendingTests).then(() => {
   console.log(`\n=== All ${passed} Automated QA Test Suites Passed! ===`);
 });
