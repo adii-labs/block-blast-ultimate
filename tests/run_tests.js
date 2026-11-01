@@ -115,8 +115,13 @@ test('Start.io config, plugin wiring, and browser preview are valid', async () =
   assert(!manifestXml.includes('com.google.android.gms.ads.APPLICATION_ID'));
   const nativeActivity = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/com/blockblast/ultimate/MainActivity.java'), 'utf8');
   assert(!nativeActivity.includes('AdMob'));
+  assert(nativeActivity.includes('setMediaPlaybackRequiresUserGesture(false)'), 'Android WebView must allow app music playback');
 
   const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const launchMarkup = indexHtml.match(/<div id="app-launch-screen"[^>]*>([\s\S]*?)<\/div>/);
+  assert(launchMarkup, 'A launch overlay should cover the app while startup ads are requested');
+  assert(!launchMarkup[1].includes('<img'), 'The launch overlay should not show the app logo');
+  assert(!launchMarkup[1].includes('Getting your puzzle ready'), 'The launch overlay should not show loading text');
   assert(indexHtml.includes('assets/images/close.png'), 'index.html must use 3D close.png X icon');
   assert(indexHtml.includes('assets/images/home.png'), 'index.html must use 3D home.png icon');
   assert(indexHtml.includes('assets/images/star_filled.png'), 'index.html must use 3D star_filled.png icon');
@@ -456,7 +461,7 @@ test('App startup reveals Home and stops music on lifecycle changes after a UI e
   };
   Object.assign(window, {
     BBU_STORAGE: { load: () => { } },
-    BBU_AUDIO: { init: () => { }, stopMusic: () => { audioStopped += 1; }, syncMusic: () => { } },
+    BBU_AUDIO: { init: () => { }, unlock: () => { }, stopMusic: () => { audioStopped += 1; }, syncMusic: () => { } },
     BBU_TASKS: { ensurePeriodsSynced: () => { } },
     BBU_UI: {
       init: () => { throw new Error('simulated WebView UI initialization failure'); },

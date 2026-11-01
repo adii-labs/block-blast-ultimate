@@ -34,8 +34,12 @@
       global.BBU_STORAGE.load();
       global.BBU_AUDIO.init();
       audioReady = true;
+      if (global.Capacitor && global.Capacitor.Plugins && typeof global.BBU_AUDIO.unlock === 'function') {
+        global.BBU_AUDIO.unlock();
+      }
       global.BBU_TASKS.ensurePeriodsSynced();
       global.BBU_UI.init();
+      await new Promise((resolve) => setTimeout(resolve, 350));
       await global.BBU_ADS.showStartupInterstitial(2000);
     } catch (error) {
       console.error('App startup failed', error);
