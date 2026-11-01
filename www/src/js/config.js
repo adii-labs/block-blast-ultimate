@@ -2,7 +2,7 @@
  * Block Blast Ultimate — Central Configuration Module
  * Centralizes Start.io configuration, Economy, Power-ups, Modes, Shop, Spinner, Achievements & 8 Candy-Jewel 3D Palettes.
 */
-  const TEST_MODE = false;
+const TEST_MODE = false;
 (function (global) {
   'use strict';
   const STARTIO_CONFIG = {
